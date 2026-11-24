@@ -1,0 +1,86 @@
+[
+  {
+    "kind": "rating",
+    "threshold": 100,
+    "title": "🪑 Сеньор на табуретке",
+    "description": "Набери 100 баллов социального рейтинга. Советы теперь звучат солиднее.",
+    "file": "senior-stool.webp"
+  },
+  {
+    "kind": "rating",
+    "threshold": 250,
+    "title": "🗿 Человек из документации",
+    "description": "Набери 250 баллов социального рейтинга. Теперь ссылаются на тебя.",
+    "file": "documentation-idol.webp"
+  },
+  {
+    "kind": "comment",
+    "threshold": 5,
+    "title": "🪛 Универсальная отвёртка",
+    "description": "Получить благодарность от пяти разных людей за один комментарий.",
+    "file": "universal-screwdriver.webp"
+  },
+  {
+    "kind": "comment",
+    "threshold": 10,
+    "title": "🩹 Хотфикс подъехал",
+    "description": "Десять человек поблагодарили за один комментарий. Чат снова собирается.",
+    "file": "hotfix-patch.webp"
+  },
+  {
+    "kind": "helpers",
+    "threshold": 10,
+    "title": "🧙 Шаман техподдержки",
+    "description": "Получить благодарности от десяти разных участников. Уточка одобряет.",
+    "file": "support-shaman.webp"
+  },
+  {
+    "kind": "helpers",
+    "threshold": 25,
+    "title": "🔔 Алло, призыв принят",
+    "description": "Двадцать пять разных участников оценили твою помощь. Тебя уже вызывают.",
+    "file": "summoning-bell.webp"
+  },
+  {
+    "kind": "helped",
+    "threshold": 10,
+    "title": "📦 Курьер кармы",
+    "description": "Поблагодари десять разных участников. Доставка добра без выходных.",
+    "file": "karma-courier.webp"
+  },
+  {
+    "kind": "helped",
+    "threshold": 25,
+    "title": "🏭 Конвейер благодарности",
+    "description": "Поблагодари двадцать пять разных участников. Производство добра налажено.",
+    "file": "thanks-conveyor.webp"
+  },
+  {
+    "kind": "messages",
+    "threshold": 500,
+    "title": "⭐ NPC получил повышение",
+    "description": "Напиши 500 сообщений с момента запуска счётчика. У тебя появились новые реплики.",
+    "file": "npc-promotion.webp"
+  },
+  {
+    "kind": "messages",
+    "threshold": 1000,
+    "title": "👑 Финальный босс диалогов",
+    "description": "Напиши 1000 сообщений с момента запуска счётчика. Диалог с тобой не пропустить.",
+    "file": "dialogue-boss.webp"
+  },
+  {
+    "kind": "reactions",
+    "threshold": 50,
+    "title": "🏋️ Качалка для большого пальца",
+    "description": "Поставь реакции на 50 разных сообщений. Палец держит форму.",
+    "file": "thumb-gym.webp"
+  },
+  {
+    "kind": "reactions",
+    "threshold": 100,
+    "title": "⚛️ Реактор одобрения",
+    "description": "Поставь реакции на 100 разных сообщений. Одобрение вышло на промышленный уровень.",
+    "file": "approval-reactor.webp"
+  }
+]

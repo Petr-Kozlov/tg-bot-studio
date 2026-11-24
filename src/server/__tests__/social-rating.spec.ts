@@ -1,15 +1,21 @@
 import 'reflect-metadata';
-import { Bot } from 'grammy';
+import { Bot, InputFile } from 'grammy';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { persistIcon } from '../modules/achievements/achievement-icons';
 import { test, expect } from 'bun:test';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { findModule } from '../bot-engine/module-registry';
 import { collection } from '../modules/achievements/achievement.service';
 import { AchievementRuntime } from '../modules/achievements/achievement.runtime';
 import { SocialRatingRuntime } from '../modules/social-rating/social-rating.runtime';
 
 test('awards one point per giver and original group message; ranks the last 30 days', async () => {
+  const priorDataDir = process.env.DATA_DIR;
+  const testData = mkdtempSync(join(tmpdir(), 'achievement-photo-'));
+  process.env.DATA_DIR = testData;
   const db = new PrismaClient({
     adapter: new PrismaLibSql({ url: 'file::memory:?cache=shared' }),
   });
@@ -230,12 +236,15 @@ test('awards one point per giver and original group message; ranks the last 30 d
       botInfo: { id: 42, is_bot: true, first_name: 'Test', username: 'GameDevChatBot' } as never,
     });
     const output: {
+      photo?: unknown;
       text: string;
       reply_parameters?: { message_id: number };
       reply_markup?: unknown;
     }[] = [];
     bot.api.config.use(async (_prev, method, payload) => {
       if (method === 'sendMessage') output.push(payload as (typeof output)[number]);
+      if (method === 'sendPhoto' && 'caption' in payload)
+        output.push({ ...payload, text: String(payload.caption) } as (typeof output)[number]);
       return { ok: true, result: true as never };
     });
     const achievementSettings = {
@@ -263,6 +272,11 @@ test('awards one point per giver and original group message; ranks the last 30 d
     const room = { id: -1, type: 'supergroup' as const, title: 'GameDev' },
       giver = { id: 999, first_name: 'Ира', is_bot: false };
     for (const [i, mode] of ['text', 'reaction'].entries()) {
+      if (mode === 'reaction') {
+        const bytes = readFileSync('assets/gamedev/achievement-icons/rice-bowl.webp');
+        const key = await persistIcon('data:image/webp;base64,' + bytes.toString('base64'));
+        await db.$executeRaw`UPDATE achievements SET icon=${key} WHERE id='new'`;
+      }
       const person = { id: 800 + i, first_name: 'Автор' + i, is_bot: false },
         message_id = 501 + i;
       const comment = {
@@ -305,6 +319,8 @@ test('awards one point per giver and original group message; ranks the last 30 d
       expect(output[0].text).toContain('+1');
       expect(output[1].text).toContain(person.first_name + ' открывает ачивку «Первая помощь»');
       expect(output[1].text).toContain('1 из 2');
+      if (mode === 'reaction') expect(output[1].photo).toBeInstanceOf(InputFile);
+      else expect(output[1].photo).toBeUndefined();
       expect(output[1].reply_markup).toEqual({
         inline_keyboard: [
           [{ text: 'Посмотреть все ачивки', url: 'https://t.me/GameDevChatBot?startapp' }],
@@ -313,5 +329,8 @@ test('awards one point per giver and original group message; ranks the last 30 d
     }
   } finally {
     await db.$disconnect();
+    if (priorDataDir === undefined) delete process.env.DATA_DIR;
+    else process.env.DATA_DIR = priorDataDir;
+    rmSync(testData, { recursive: true, force: true });
   }
 });
