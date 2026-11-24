@@ -1,0 +1,237 @@
+.gd,
+.gd-collection {
+  --soft: var(--tg-secondary-bg-color);
+  --accent: var(--tg-link-color);
+  --tint: color-mix(in srgb, var(--accent) 11%, var(--tg-bg-color));
+  padding-bottom: 10px;
+}
+.gd {
+  padding-bottom: 60px;
+}
+.gd [hidden] {
+  display: none !important;
+}
+.gd h1 {
+  font-size: 29px;
+  letter-spacing: -0.04em;
+  margin: 18px 0 10px;
+}
+.gd button,
+.gd-collection button {
+  color: var(--tg-hint-color);
+  background: transparent;
+}
+.gd-header,
+.gd-header button,
+.gd-tabs,
+.gd-segment,
+.gd-hero,
+.gd-total,
+.gd-pills,
+.gd-track,
+.gd-filters,
+.gd-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gd-header {
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 14px;
+}
+.gd-header strong,
+.gd-header button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gd-header button {
+  margin-left: auto;
+  padding: 4px;
+  max-width: 48%;
+}
+.gd-header img,
+.gd-header .initial {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: none;
+  object-fit: cover;
+}
+.gd-header .initial {
+  display: grid;
+  place-items: center;
+  background: #7651ae;
+  color: white;
+}
+.gd-tabs {
+  border-bottom: 1px solid var(--card-border);
+  margin: 12px 0;
+}
+.gd-tabs button[aria-pressed='true'] {
+  border-radius: 0;
+  color: var(--accent);
+  border-bottom: 3px solid;
+}
+.gd-segment {
+  padding: 4px;
+  background: var(--soft);
+  border-radius: 12px;
+}
+.gd-segment button {
+  flex: 1;
+}
+.gd-segment button[aria-pressed='true'] {
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  box-shadow: 0 1px 5px #14253a22;
+}
+.gd-hero {
+  background: var(--tint);
+  padding: 14px 18px;
+  border-radius: 16px;
+  margin: 13px 0;
+}
+.gd-hero strong {
+  display: block;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+.gd-hero img {
+  margin-left: auto;
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+}
+.gd small,
+.gd-collection small,
+.gd-award p {
+  color: var(--tg-hint-color);
+}
+.gd-filters,
+.gd-total {
+  justify-content: space-between;
+  margin: 15px 0 8px;
+}
+.gd-filters select {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--tg-text-color);
+  padding: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 14px;
+}
+.gd-list {
+  list-style: none;
+}
+.gd-list li {
+  min-height: 46px;
+  border-top: 1px solid var(--card-border);
+  padding: 8px 4px;
+}
+.gd-list li > b {
+  overflow-wrap: anywhere;
+}
+.gd-list li > strong {
+  margin-left: auto;
+}
+.gd-mine {
+  background: var(--tint);
+  color: var(--accent);
+  border-radius: 9px;
+}
+.gd-place {
+  text-align: center;
+  width: 29px;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.gd-place:is(.p1, .p2, .p3) {
+  clip-path: polygon(0 0, 100% 0, 100% 74%, 50% 100%, 0 74%);
+  padding-bottom: 5px;
+  font-weight: 800;
+  color: #423020;
+  background: linear-gradient(120deg, #ffeb9d, #e7a633);
+}
+.gd-place.p2 {
+  background: linear-gradient(120deg, #edf5ff, #a6bacd);
+}
+.gd-place.p3 {
+  background: linear-gradient(120deg, #ffddc7, #d18a69);
+}
+.gd .gd-return {
+  position: fixed;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  right: max(16px, calc((100vw - 448px) / 2));
+  border-radius: 25px;
+  background: var(--tg-text-color);
+  color: var(--tg-bg-color);
+  box-shadow: 0 3px 14px #101f3838;
+}
+.gd-collection h2 {
+  font-size: 19px;
+  margin: 18px 0 6px;
+}
+.gd-total h2 {
+  margin: 0;
+}
+.gd-collection progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--tg-button-color);
+}
+.gd-pills {
+  gap: 4px;
+  margin: 12px 0;
+}
+.gd-pills button {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 18px;
+}
+.gd-pills button[aria-pressed='true'] {
+  background: var(--tint);
+  color: var(--accent);
+}
+.gd-collection h3 {
+  margin: 18px 0 6px;
+  font-size: 14px;
+  color: var(--tg-hint-color);
+}
+.gd-award {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 22px;
+  gap: 10px;
+  align-items: center;
+  min-height: 88px;
+  border-top: 1px solid var(--card-border);
+  padding: 12px 2px;
+}
+.gd-award img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.gd-award p {
+  font-size: 13px;
+  margin: 3px 0;
+}
+.gd-track progress {
+  flex: 1;
+  min-width: 0;
+}
+.gd-track small {
+  white-space: nowrap;
+}
+.gd-done {
+  border-radius: 50%;
+  background: #16734b;
+  color: white;
+  text-align: center;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+}

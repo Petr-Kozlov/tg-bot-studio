@@ -40,7 +40,7 @@ type WebAppEventHandler = (payload?: unknown) => void;
  */
 interface TelegramWebApp {
   initData: string;
-  initDataUnsafe: { user?: { id: number; first_name?: string; username?: string } };
+  initDataUnsafe: { user?: { id: number; first_name?: string; username?: string; photo_url?:string } };
   colorScheme: 'light' | 'dark';
   themeParams: Record<string, string>;
   ready(): void;

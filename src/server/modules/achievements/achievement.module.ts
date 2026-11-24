@@ -7,7 +7,9 @@ import {
   AchievementCollectionController,
 } from './achievement.controller';
 import { AchievementService } from './achievement.service';
+import { BotsModule } from '../../bots/bots.module';
 @Module({
+  imports:[BotsModule],
   controllers: [IconController, AchievementController, AchievementCollectionController],
   providers: [AchievementRuntime, AchievementService],
 })

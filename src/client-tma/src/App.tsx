@@ -154,11 +154,11 @@ export default function App(): React.ReactElement {
 
   return (
     <main className="app-shell">
-      <header className="app-header">
+      {(config.templateType !== 'profile' || !insideTelegram) && <header className="app-header">
         {logoUrl ? <img src={logoUrl} alt={config.title} className="app-logo" /> : null}
         <h1>{config.title}</h1>
         {config.description ? <p>{config.description}</p> : null}
-      </header>
+      </header>}
       {!insideTelegram && (
         <div className="card">
           <span className="muted">
@@ -195,7 +195,7 @@ function TemplateRenderer({ config }: { config: TmaAppConfig }): React.ReactElem
     case 'leaderboard':
       return <Leaderboard config={config} />;
     case 'profile':
-      return <Profile slug={config.slug} />;
+      return <Profile slug={config.slug} title={config.title} />;
     case 'achievements':
       return <Achievements slug={config.slug} />;
     case 'support':

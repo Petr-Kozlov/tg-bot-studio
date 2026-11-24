@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
 import { tmaFetch } from '../api';
 import { isInsideTelegram } from '../sdk/telegram';
-import './achievements.css';
-const groups = [
-  ['Рейтинг', ['rating']],
-  ['Помощь', ['comment', 'helpers', 'helped']],
-  ['Общение', ['messages']],
-  ['Реакции', ['reactions']],
-] as const;
+import './profile.css';
 type Entry = {
   kind: string;
   id: string;
@@ -19,72 +13,110 @@ type Entry = {
   unlocked: string | null;
   icon: string;
 };
+const groups: Record<string, string> = {
+  rating: 'Социальный рейтинг',
+  messages: 'Общение',
+  comment: 'За один комментарий',
+  helpers: 'Кому помогли вы',
+  helped: 'Кого поблагодарили вы',
+  reactions: 'Реакции',
+};
+function Award({ item }: { item: Entry }) {
+  const n = Math.min(item.value, item.threshold);
+  return (
+    <article className="gd-award">
+      {item.icon ? <img src={item.icon} alt="" /> : <span aria-hidden="true">🏆</span>}
+      <div>
+        <b>
+          {item.title.replace(/^\S+\s+/u, (match) =>
+            /\p{Extended_Pictographic}/u.test(match) ? '' : match,
+          )}
+        </b>
+        <p>{item.description || item.condition}</p>
+        {item.unlocked ? (
+          <small>
+            {new Date(item.unlocked.replace(' ', 'T') + 'Z').toLocaleDateString('ru-RU')}
+          </small>
+        ) : (
+          <div className="gd-track">
+            <progress aria-label={item.condition} value={n} max={item.threshold} />
+            <small>
+              {n} / {item.threshold}
+            </small>
+          </div>
+        )}
+      </div>
+      {item.unlocked && (
+        <span className="gd-done" aria-label="Открыта" role="img">
+          ✓
+        </span>
+      )}
+    </article>
+  );
+}
 export default function Achievements({ slug }: { slug: string }) {
-  const [items, setItems] = useState<Entry[] | null>(null),
-    [error, setError] = useState('');
+  const [items, setItems] = useState<Entry[]>(),
+    [error, setError] = useState(''),
+    [filter, setFilter] = useState('Все');
   useEffect(() => {
     if (!isInsideTelegram()) return;
-    let active = true;
-    tmaFetch<Entry[]>('/api/tma/' + slug + '/achievements')
-      .then((x) => {
-        if (active) setItems(x);
-      })
+    const c = new AbortController();
+    tmaFetch<Entry[]>('/api/tma/' + encodeURIComponent(slug) + '/achievements', {
+      signal: c.signal,
+    })
+      .then(setItems)
       .catch((e) => {
-        if (active) setError(e.message);
+        if (!c.signal.aborted) setError(e.message);
       });
-    return () => {
-      active = false;
-    };
+    return () => c.abort();
   }, [slug]);
   if (!isInsideTelegram()) return null;
   if (error) return <p role="alert">{error}</p>;
   if (!items) return <p>Загрузка коллекции…</p>;
   if (!items.length) return <p>Ачивки пока не настроены.</p>;
+  const opened = items.filter((i) => i.unlocked).length;
+  const closest = items
+    .filter((i) => !i.unlocked)
+    .sort((a, b) => b.value / b.threshold - a.value / a.threshold)[0];
+  const visible = items.filter(
+    (i) => filter === 'Все' || (filter === 'Открытые') === Boolean(i.unlocked),
+  );
   return (
-    <section aria-label="Моя коллекция">
-      <p className="achievement-summary">
-        <strong>
-          {items.filter((i) => i.unlocked).length} / {items.length}
-        </strong>{' '}
-        открыто
-      </p>
-      {groups.map(([title, kinds]) => {
-        const entries = items.filter((i) => kinds.some((k) => k === i.kind));
-        if (!entries.length) return null;
-        return (
-          <section className="achievement-group" key={title}>
-            <h2>{title}</h2>
-            {entries.map((i) => {
-              const prefix = i.title.match(/^(\p{Extended_Pictographic}\uFE0F?)\s+/u);
-              return (
-                <article key={i.id} className="achievement-entry" data-locked={!i.unlocked}>
-                  <div className="achievement-icon" aria-hidden="true">
-                    {i.icon ? <img src={i.icon} alt="" /> : (prefix?.[1] ?? '🏆')}
-                  </div>
-                  <div>
-                    <h3>{prefix ? i.title.slice(prefix[0].length) : i.title}</h3>
-                    {i.description && <p>{i.description}</p>}
-                    <small>
-                      {i.condition} · {i.threshold}
-                    </small>
-                    {i.unlocked ? (
-                      <div>
-                        ✓ Открыто{' '}
-                        {new Date(i.unlocked.replace(' ', 'T') + 'Z').toLocaleDateString('ru-RU')}
-                      </div>
-                    ) : (
-                      <div>
-                        <progress value={Math.min(i.value, i.threshold)} max={i.threshold} />{' '}
-                        {Math.min(i.value, i.threshold)} / {i.threshold}
-                      </div>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
+    <div className="gd-collection">
+      {closest && (
+        <>
+          <h2>Ближайшая ачивка</h2>
+          <Award item={closest} />
+        </>
+      )}
+      <div className="gd-total">
+        <h2>Мои ачивки</h2>
+        <b>
+          {opened} / {items.length}
+        </b>
+      </div>
+      <progress aria-label="Открыто ачивок" value={opened} max={items.length} />
+      <div className="gd-pills">
+        {['Все', 'В процессе', 'Открытые'].map((f) => (
+          <button key={f} aria-pressed={f === filter} onClick={() => setFilter(f)}>
+            {f}
+          </button>
+        ))}
+      </div>
+      {Object.entries(groups).map(([key, label]) => {
+        const entries = visible.filter((i) => i.kind === key);
+        return entries.length ? (
+          <section key={key}>
+            <h3>{label}</h3>
+            {entries.map((i) => (
+              <Award key={i.id} item={i} />
+            ))}
           </section>
-        );
+        ) : null;
       })}
-    </section>
+      {!visible.length && (
+        <p>{filter === 'Открытые' ? 'Пока нет открытых ачивок.' : 'Все ачивки открыты.'}</p>
+      )}
+    </div>
   );
 }

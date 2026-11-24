@@ -1,4 +1,6 @@
 import { captureUnlocks } from '../achievements/unlock-notices';
+import { ratingStandings } from './rating-standings';
+import { Prisma } from '@prisma/client';
 import { socialScore } from './social-score';
 import { Injectable } from '@nestjs/common';
 import type { Context } from 'grammy';
@@ -160,16 +162,8 @@ export class SocialRatingRuntime extends BotModuleHandler {
 
     bot.command('toprating', async (c) => {
       if (!(await targeted(c))) return;
-      const cutoff = new Date(Date.now() - 30 * 86400000);
-      const chatId = String(c.chat.id);
-      const rows = await this.db.$queryRaw<Array<{ name: string; score: bigint }>>`
-        SELECT MAX(recipient_name) AS name, SUM(points) AS score FROM (
-          SELECT recipient, recipient_name, 1 AS points FROM social_rating_awards
-          WHERE bot_id=${botId} AND chat_id=${chatId} AND awarded_at>=${cutoff}
-          UNION ALL
-          SELECT recipient, recipient_name, -1 AS points FROM social_rating_penalties
-          WHERE bot_id=${botId} AND chat_id=${chatId} AND issued_at>=${cutoff} AND undone_by IS NULL
-        ) GROUP BY recipient ORDER BY score DESC, recipient ASC LIMIT 10`;
+      const rows = await this.db.$queryRaw<Array<{ name: string; score: bigint }>>(Prisma.sql`
+        ${ratingStandings(botId,String(c.chat.id),30)} ORDER BY score DESC, user ASC LIMIT 10`);
       const cfg = await options(c.chat.id);
       const medals = String(cfg.rankMedals ?? '')
         .trim()
