@@ -134,7 +134,8 @@ export class SocialRatingRuntime extends BotModuleHandler {
 
     bot.command('rating', async (c) => {
       if (!(await targeted(c))) return;
-      const original = c.msg.reply_to_message;
+      const replied = c.msg.reply_to_message;
+      const original = replied?.is_automatic_forward ? undefined : replied;
       const user = original ? original.from : c.from;
       if (!user || user.is_bot || original?.sender_chat) return;
       const count = await this.db.socialRatingAward.count({

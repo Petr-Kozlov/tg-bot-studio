@@ -1,3 +1,4 @@
+import { replyInCommandThread } from './reply-in-command-thread';
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { Bot } from 'grammy';
 import { autoRetry } from '@grammyjs/auto-retry';
@@ -163,6 +164,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
       await this.stopExisting(row.id);
       const bot = new Bot(row.token);
       bot.api.config.use(autoRetry());
+      bot.use(replyInCommandThread);
       bot.catch((error) => {
         this.logger.error(`Bot ${row.id} update error: ${error.message}`);
       });

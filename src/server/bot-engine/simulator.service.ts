@@ -1,3 +1,4 @@
+import { replyInCommandThread } from './reply-in-command-thread';
 import { Injectable, Logger } from '@nestjs/common';
 import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
@@ -201,6 +202,7 @@ export class SimulatorService {
     const simBot = new Bot(row.token || '0:simulator');
     simBot.botInfo = botInfo; // never call init(): no network
     simBot.catch(() => undefined);
+    simBot.use(replyInCommandThread);
 
     const captured: CapturedCall[] = [];
     simBot.api.config.use((_prev, method, payload) => {
