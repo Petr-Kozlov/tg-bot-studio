@@ -1304,7 +1304,7 @@ export const MODULES: ModuleEntry[] = [
     category: 'Community & Moderation',
     description: 'Личная коллекция наград за рейтинг, помощь, общение и реакции.',
     chatScoped: true,
-    pageType:'config',configFields:[{key:'launchUrl',type:'text',label:'Ссылка Telegram Mini App'}],docs:{overview:['Коллекция участника'],setup:['Подключите чат и создайте награды.'],troubleshooting:[]},
+    pageType:'config',configFields:[{key:'notifyUnlock',type:'switch',label:'Сообщать в чате о новых ачивках'},{key:'unlockText',type:'textarea',label:'Сообщение о разблокировке',help:'Доступны {name}, {title}, {description}, {opened}, {total}.'},{key:'unlockButton',type:'text',label:'Кнопка коллекции (пусто — без кнопки)'},{key:'launchUrl',type:'text',label:'Ссылка Telegram Mini App'}],docs:{overview:['Коллекция участника'],setup:['Подключите чат и создайте награды.'],troubleshooting:[]},
   },
   {
     key: 'social-rating',

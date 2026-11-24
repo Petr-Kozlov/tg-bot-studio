@@ -5,6 +5,7 @@ import { ModuleHandlerRegistry } from '../../bot-engine/module-handler-registry'
 import { ChatSettingsService } from '../../bot-engine/chat-settings.service';
 import { PrismaService } from '../../database/prisma.service';
 
+import { beginUnlockNotices, captureUnlocks, sendUnlockNotices } from './unlock-notices';
 import { collection } from './achievement.service';
 
 @Injectable()
@@ -79,6 +80,13 @@ export class AchievementRuntime extends BotModuleHandler {
     });
 
     bot.on('message', async (c, next) => {
+      if (await targeted(c))
+        beginUnlockNotices(
+          c,
+          botId,
+          c.chat.id,
+          await this.settings.getEffectiveConfig(botId, c.chat.id, this.moduleKey),
+        );
       const author = c.msg.from;
       if (author && !author.is_bot && !c.msg.sender_chat && (await targeted(c))) {
         if (
@@ -101,14 +109,27 @@ export class AchievementRuntime extends BotModuleHandler {
           c.msg.story ||
           c.msg.paid_media
         ) {
-          await this.db
-            .$executeRaw`INSERT INTO achievement_activity VALUES(${botId},${String(c.chat.id)},${String(author.id)},'messages',${c.msg.message_id}) ON CONFLICT DO NOTHING`;
+          await captureUnlocks(
+            c,
+            this.db,
+            c.msg.message_id,
+            (tx) =>
+              tx.$executeRaw`INSERT INTO achievement_activity VALUES(${botId},${String(c.chat.id)},${String(author.id)},'messages',${c.msg.message_id}) ON CONFLICT DO NOTHING`,
+          );
         }
       }
       await next();
+      await sendUnlockNotices(c, this.db);
     });
 
     bot.on('message_reaction', async (c, next) => {
+      if (await targeted(c))
+        beginUnlockNotices(
+          c,
+          botId,
+          c.chat.id,
+          await this.settings.getEffectiveConfig(botId, c.chat.id, this.moduleKey),
+        );
       const event = c.messageReaction;
       const giver = event.user;
       if (
@@ -118,10 +139,16 @@ export class AchievementRuntime extends BotModuleHandler {
         event.new_reaction.length &&
         (await targeted(c))
       ) {
-        await this.db
-          .$executeRaw`INSERT INTO achievement_activity VALUES(${botId},${String(event.chat.id)},${String(giver.id)},'reactions',${event.message_id}) ON CONFLICT DO NOTHING`;
+        await captureUnlocks(
+          c,
+          this.db,
+          event.message_id,
+          (tx) =>
+            tx.$executeRaw`INSERT INTO achievement_activity VALUES(${botId},${String(event.chat.id)},${String(giver.id)},'reactions',${event.message_id}) ON CONFLICT DO NOTHING`,
+        );
       }
       await next();
+      await sendUnlockNotices(c, this.db);
     });
     bot.command(['profile', 'achievements'], async (c) => {
       if (!c.from || c.msg.sender_chat || !(await targeted(c))) return;

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { Bot } from 'grammy';
 import { test, expect } from 'bun:test';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
@@ -10,7 +11,7 @@ import { SocialRatingRuntime } from '../modules/social-rating/social-rating.runt
 
 test('awards one point per giver and original group message; ranks the last 30 days', async () => {
   const db = new PrismaClient({
-    adapter: new PrismaLibSql({ url: ':memory:' }),
+    adapter: new PrismaLibSql({ url: 'file::memory:?cache=shared' }),
   });
   try {
     await db.$executeRawUnsafe('CREATE TABLE bots (id TEXT PRIMARY KEY)');
@@ -51,7 +52,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
     const activity = new Map<string, Function>();
     new AchievementRuntime(
       db as never,
-      { isTargeted: async () => true } as never,
+      { isTargeted: async () => true, getEffectiveConfig: async () => ({}) } as never,
       { register() {} } as never,
     ).register({
       botId: 'b',
@@ -225,6 +226,91 @@ test('awards one point per giver and original group message; ranks the last 30 d
       { value: bigint }[]
     >`SELECT value FROM achievement_metrics WHERE user_id='33' AND kind='reactions'`;
     expect(Number(count[0].value)).toBe(2);
+    const bot = new Bot('42:test', {
+      botInfo: { id: 42, is_bot: true, first_name: 'Test', username: 'GameDevChatBot' } as never,
+    });
+    const output: {
+      text: string;
+      reply_parameters?: { message_id: number };
+      reply_markup?: unknown;
+    }[] = [];
+    bot.api.config.use(async (_prev, method, payload) => {
+      if (method === 'sendMessage') output.push(payload as (typeof output)[number]);
+      return { ok: true, result: true as never };
+    });
+    const achievementSettings = {
+      isTargeted: async () => true,
+      getEffectiveConfig: async () => ({
+        ...findModule('achievements')!.defaultConfig,
+        notifyUnlock: true,
+        launchUrl: 'https://t.me/GameDevChatBot?startapp',
+      }),
+    };
+    new AchievementRuntime(
+      db as never,
+      achievementSettings as never,
+      { register() {} } as never,
+    ).register({ bot, botId: 'b', config: {} });
+    new SocialRatingRuntime(
+      db as never,
+      {
+        isTargeted: async () => true,
+        getEffectiveConfig: async () => ({ ...config, notifyReactionAward: true }),
+      } as never,
+      { register() {} } as never,
+    ).register({ bot, botId: 'b', config: {} });
+    await db.$executeRaw`INSERT INTO achievements(id,bot_id,chat_id,title,description,kind,threshold) VALUES ('new','b','-1','Первая помощь','Помоги участнику','rating',1)`;
+    const room = { id: -1, type: 'supergroup' as const, title: 'GameDev' },
+      giver = { id: 999, first_name: 'Ира', is_bot: false };
+    for (const [i, mode] of ['text', 'reaction'].entries()) {
+      const person = { id: 800 + i, first_name: 'Автор' + i, is_bot: false },
+        message_id = 501 + i;
+      const comment = {
+        message_id,
+        date: 1,
+        chat: room,
+        from: person,
+        text: 'Комментарий',
+        message_thread_id: 500,
+      };
+      await bot.handleUpdate({ update_id: 600 + i, message: comment });
+      output.length = 0;
+      for (let k = 0; k < 2; k++) {
+        const update_id = 610 + i * 2 + k;
+        if (mode === 'text')
+          await bot.handleUpdate({
+            update_id,
+            message: {
+              ...comment,
+              message_id: 700 + k,
+              from: giver,
+              text: 'Спасибо',
+              reply_to_message: { ...comment, reply_to_message: undefined },
+            },
+          });
+        else
+          await bot.handleUpdate({
+            update_id,
+            message_reaction: {
+              chat: room,
+              date: 1,
+              message_id,
+              user: giver,
+              old_reaction: [],
+              new_reaction: [{ type: 'emoji', emoji: '👍' }],
+            },
+          });
+      }
+      expect(output.map((x) => x.reply_parameters?.message_id)).toEqual([message_id, message_id]);
+      expect(output[0].text).toContain('+1');
+      expect(output[1].text).toContain(person.first_name + ' открывает ачивку «Первая помощь»');
+      expect(output[1].text).toContain('1 из 2');
+      expect(output[1].reply_markup).toEqual({
+        inline_keyboard: [
+          [{ text: 'Посмотреть все ачивки', url: 'https://t.me/GameDevChatBot?startapp' }],
+        ],
+      });
+    }
   } finally {
     await db.$disconnect();
   }

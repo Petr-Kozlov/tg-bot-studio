@@ -271,7 +271,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     category: 'Community & Moderation',
     description: 'Личная коллекция наград за рейтинг, помощь, общение и реакции.',
     chatScoped: true,
-    defaultConfig:{launchUrl:''},
+    defaultConfig:{launchUrl:'',notifyUnlock:false,unlockText:'🏆 {name} открывает ачивку «{title}»!\n{description}\nОткрыто: {opened} из {total}.',unlockButton:'Посмотреть все ачивки'},
   },
   {
     key: 'social-rating',
