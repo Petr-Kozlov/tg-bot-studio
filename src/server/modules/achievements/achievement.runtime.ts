@@ -123,7 +123,7 @@ export class AchievementRuntime extends BotModuleHandler {
       }
       await next();
     });
-    bot.command('achievements', async (c) => {
+    bot.command(['profile', 'achievements'], async (c) => {
       if (!c.from || c.msg.sender_chat || !(await targeted(c))) return;
       const button = (await launchButton(c)) ?? {
         text: '🏆 Мои ачивки',
