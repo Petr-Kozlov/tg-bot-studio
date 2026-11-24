@@ -1,5 +1,6 @@
-import { InputFile, type Context } from 'grammy';
+import { GrammyError, InputFile, type Context } from 'grammy';
 import { Logger } from '@nestjs/common';
+import { escapeHtml } from '../../common/utils/telegram-text.util';
 import { iconFile } from './achievement-icons';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../../database/prisma.service';
@@ -85,11 +86,11 @@ export async function sendUnlockNotices(c: Context, db: PrismaService) {
       opened: String(n.opened),
       total: String(n.total),
     };
-    const text = template
-      .replace(/\{(name|title|description|opened|total)\}/g, (_, key: string) => vars[key])
-      .trim()
-      .slice(0, 4096);
-    if (!text) continue;
+    const html = config.unlockHtml === true;
+    const render = (source: string, formatted: boolean) =>
+      source.replace(/\{(name|title|description|opened|total)\}/g, (_, key: string) =>
+        formatted ? escapeHtml(vars[key]).replace(/"/g, '&quot;') : vars[key],
+      ).trim();
     const options = {
       reply_parameters: { message_id: row.messageId },
       ...(label ? { reply_markup: { inline_keyboard: [[button]] } } : {}),
@@ -106,13 +107,26 @@ export async function sendUnlockNotices(c: Context, db: PrismaService) {
         );
       }
     }
-    if (photo) {
-      const chars = Array.from(text);
-      const caption =
-        chars.length <= 1024
-          ? text
-          : chars.slice(0, 800).join('') + '…' + chars.slice(-223).join('');
-      await c.replyWithPhoto(photo, { ...options, caption });
-    } else await c.reply(text, options);
+    const send = async (text: string, formatted: boolean) => {
+      const format = formatted ? { parse_mode: 'HTML' as const } : {};
+      if (photo) await c.replyWithPhoto(photo, { ...options, ...format, caption: text });
+      else await c.reply(text, { ...options, ...format });
+    };
+    if (html) {
+      try {
+        await send(render(template, true), true);
+        continue;
+      } catch (error) {
+        if (!(error instanceof GrammyError && error.error_code === 400 &&
+          /parse entities|too long|custom emoji|CUSTOM_EMOJI/i.test(error.description))) throw error;
+        Logger.warn('Telegram rejected achievement formatting; sending plain text', 'AchievementRuntime');
+      }
+    }
+    const plain = render(html ? template.replace(/<\/?[a-z][^>]*>/gi, '') : template, false);
+    if (!plain) continue;
+    const limit = photo ? 1024 : 4096;
+    const chars = Array.from(plain);
+    await send(chars.length <= limit ? plain :
+      chars.slice(0, limit - 224).join('') + '…' + chars.slice(-223).join(''), false);
   }
 }
