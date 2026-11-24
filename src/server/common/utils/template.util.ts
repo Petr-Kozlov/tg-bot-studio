@@ -45,6 +45,7 @@ export interface TemplateContext {
   rank?: number;
   medal?: string;
   name?: string;
+  giver?: string;
   score?: number | string;
   messages?: number | string;
   replies?: number | string;

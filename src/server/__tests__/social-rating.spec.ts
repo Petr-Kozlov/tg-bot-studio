@@ -95,7 +95,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
         messageReaction: {
           chat,
           message_id,
-          user: { id },
+          user: { id, first_name: 'Олег' },
           old_reaction: types(before),
           new_reaction: types(after),
         },
@@ -118,7 +118,13 @@ test('awards one point per giver and original group message; ranks the last 30 d
       from: { ...c.from, id: 33 },
       msg: { ...c.msg, reply_to_message: { ...c.msg.reply_to_message, message_id: 55 } },
     });
-    expect(notices).toEqual([[out[0], { reply_parameters: { message_id: 55 } }]]);
+    expect(out[0]).toContain('Маша получает +1 к социальному рейтингу! От кого: Ира.');
+    expect(notices).toEqual([
+      [
+        '✨ Маша получает +1 к социальному рейтингу! От кого: Олег.',
+        { reply_parameters: { message_id: 55 } },
+      ],
+    ]);
     config.notifyReactionAward = false;
     expect(await db.socialRatingAward.count()).toBe(4);
     await handlers.get('rating')!(c);

@@ -67,7 +67,10 @@ export class SocialRatingRuntime extends BotModuleHandler {
           ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING
           RETURNING recipient_name`;
         if (cfg.notifyReactionAward === true && awards.length) {
-          const body = format(cfg, 'awardText', { name: awards[0].recipient_name });
+          const body = format(cfg, 'awardText', {
+            name: awards[0].recipient_name,
+            giver: giver.first_name,
+          });
           if (body) await c.reply(body, { reply_parameters: { message_id: event.message_id } });
         }
       }
@@ -201,7 +204,10 @@ export class SocialRatingRuntime extends BotModuleHandler {
           VALUES (${botId}, ${String(c.chat.id)}, ${original.message_id}, ${String(c.from.id)}, ${String(user.id)}, ${user.first_name}, ${new Date()})
           ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
         if (added) {
-          const body = format(await options(c.chat.id), 'awardText', { name: user.first_name });
+          const body = format(await options(c.chat.id), 'awardText', {
+            name: user.first_name,
+            giver: c.from.first_name,
+          });
           if (body) await c.reply(body, { reply_parameters: { message_id: original.message_id } });
         }
       }
