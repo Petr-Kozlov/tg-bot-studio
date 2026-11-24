@@ -202,7 +202,7 @@ export class SocialRatingRuntime extends BotModuleHandler {
           ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
         if (added) {
           const body = format(await options(c.chat.id), 'awardText', { name: user.first_name });
-          if (body) await c.reply(body);
+          if (body) await c.reply(body, { reply_parameters: { message_id: original.message_id } });
         }
       }
       await next();

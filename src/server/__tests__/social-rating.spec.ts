@@ -50,7 +50,13 @@ test('awards one point per giver and original group message; ranks the last 30 d
       reply: async (t: string) => out.push(t),
     };
     const send = (ctx: unknown) => handlers.get('message:text')!(ctx, async () => {});
-    await send(c);
+    await send({
+      ...c,
+      reply: (text: string, options: unknown) => {
+        expect(options).toEqual({ reply_parameters: { message_id: 10 } });
+        return c.reply(text);
+      },
+    });
     await send(c);
     await send({ ...c, from: c.msg.reply_to_message.from });
     await send({ ...c, msg: { text: 'Спасибо всем' } });
