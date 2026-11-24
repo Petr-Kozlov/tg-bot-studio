@@ -45,6 +45,12 @@ export class RulesRuntime extends BotModuleHandler {
     const { bot, botId } = ctx;
 
     bot.command('rules', (c) => this.handleRules(c, botId));
+    bot.callbackQuery('rules:show', async (c) => {
+      await c.answerCallbackQuery().catch(() => undefined);
+      if (c.chat?.type === 'group' || c.chat?.type === 'supergroup') {
+        await this.handleRules(c, botId);
+      }
+    });
     bot.command('setrules', (c) => this.handleSetRules(c, botId));
     bot.command('resetrules', (c) => this.handleResetRules(c, botId));
     bot.command('privaterules', (c) => this.handlePrivateRules(c, botId));
