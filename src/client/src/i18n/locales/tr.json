@@ -11,6 +11,16 @@
     "invalid": "Geçersiz anahtar"
   },
   "nav": {
+    "chooseChat": "Sohbet seç",
+    "chatConnections": "Sohbet bağlantıları",
+    "chatOverview": "Sohbet özeti",
+    "addChatModule": "Modül ekle",
+    "connectChatModule": "Sohbete bağla",
+    "chatModulesEmpty": "Bu sohbette bağlı modül yok.",
+    "chatCatalogEmpty": "Tüm kullanılabilir modüller bağlı.",
+    "chatRetry": "Yeniden dene",
+    "chatLoadError": "Sohbet modülleri yüklenemedi.",
+    "chatUnavailable": "Sohbet etkin ve bu bot için izinli olmalıdır.",
     "overview": "Tüm Botlar",
     "botDashboard": "Genel Bakış",
     "modules": "Modüller",

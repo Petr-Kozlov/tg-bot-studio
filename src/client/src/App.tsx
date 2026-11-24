@@ -12,6 +12,7 @@ import { StudioThemeProvider } from './theme';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SnackbarProvider } from './context/SnackbarContext';
 import { BotProvider } from './context/BotContext';
+import { ChatWorkspaceProvider } from './context/ChatWorkspaceContext';
 import { ConnectionsProvider } from './context/ConnectionsContext';
 import { ModuleDocsProvider } from './context/ModuleDocsContext';
 import { useLocalizedModule } from './registry/localize';
@@ -26,6 +27,7 @@ const BotsOverviewPage = lazy(() => import('./pages/BotsOverviewPage'));
 const BotDashboardPage = lazy(() => import('./pages/BotDashboardPage'));
 const ModulesManagerPage = lazy(() => import('./pages/ModulesManagerPage'));
 const MiniAppsPage = lazy(() => import('./pages/MiniAppsPage'));
+const ChatWorkspacePage = lazy(() => import('./pages/ChatWorkspacePage'));
 const ConnectionSettingsPage = lazy(() => import('./pages/ConnectionSettingsPage'));
 const SecurityPage = lazy(() => import('./pages/SecurityPage'));
 const ModuleConfigPage = lazy(() => import('./pages/ModuleConfigPage'));
@@ -137,7 +139,7 @@ function AppRoutes(): React.ReactElement {
 
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route element={<ChatWorkspaceProvider><Layout /></ChatWorkspaceProvider>}>
         <Route path="/" element={<BotsOverviewPage />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/security" element={<SecurityPage />} />
@@ -148,6 +150,7 @@ function AppRoutes(): React.ReactElement {
           path="/bots/:botId/connections/:connectionId/settings"
           element={<ConnectionSettingsPage />}
         />
+        <Route path="/bots/:botId/chats/:connectionId/:moduleKey?" element={<ChatWorkspacePage />} />
         <Route path="/bots/:botId/m/:moduleKey" element={<ModuleRoute />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

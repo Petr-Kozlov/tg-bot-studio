@@ -11,6 +11,16 @@
     "invalid": "Invalid master key"
   },
   "nav": {
+    "chooseChat": "Choose a chat",
+    "chatConnections": "Chat connections",
+    "chatOverview": "Chat overview",
+    "addChatModule": "Add module",
+    "connectChatModule": "Connect to chat",
+    "chatModulesEmpty": "This chat has no connected modules yet.",
+    "chatCatalogEmpty": "All available modules are connected.",
+    "chatRetry": "Retry",
+    "chatLoadError": "Could not load chat modules.",
+    "chatUnavailable": "The chat must be active and allowed for this bot.",
     "overview": "All Bots",
     "botDashboard": "Overview",
     "modules": "Modules",

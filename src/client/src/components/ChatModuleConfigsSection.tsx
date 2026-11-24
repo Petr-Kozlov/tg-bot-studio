@@ -78,10 +78,12 @@ export function ChatModuleConfigsSection({
   botId,
   module,
   fixedChatId,
+  onRemoved,
 }: {
   botId: string;
   module: ModuleEntry;
   fixedChatId?: string;
+  onRemoved?: () => void;
 }): React.ReactElement {
   const { t } = useTranslation();
   const { connections, loading: connectionsLoading, refresh } = useConnections();
@@ -166,9 +168,17 @@ export function ChatModuleConfigsSection({
     const chatId = removingChatId;
     setRemovingChatId(null);
     if (!chatId) return;
-    apiFetch(`/api/bots/${botId}/chat-settings/${chatId}/${module.key}`, {
-      method: 'DELETE',
-    }).catch(() => undefined);
+    const path = `/api/bots/${botId}/chat-settings/${chatId}/${module.key}`;
+    if (onRemoved) {
+      apiFetch<ChatSettingsSnapshot>(path)
+        .then(({ override }) => apiFetch(path, {
+          method: 'PUT', body: JSON.stringify({ ...override, enabled: false }),
+        }))
+        .then(onRemoved)
+        .catch((err: Error) => setError(localizedErrorMessage(err)));
+      return;
+    }
+    apiFetch(path, { method: 'DELETE' }).catch(() => undefined);
     setEntries((prev) => {
       const next = { ...prev };
       delete next[chatId];

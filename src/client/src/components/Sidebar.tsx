@@ -20,6 +20,12 @@ import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import LanguageIcon from '@mui/icons-material/Language';
+import AddIcon from '@mui/icons-material/Add';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import { useConnections } from '../context/ConnectionsContext';
+import { useChatWorkspace } from '../context/ChatWorkspaceContext';
+import { moduleIcon } from './ModuleIcons';
+import ChatAvatar from './ChatAvatar';
 import AppsIcon from '@mui/icons-material/Apps';
 import SpaceDashboardOutlinedIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
@@ -43,7 +49,7 @@ import {
   normalize,
 } from './sidebar/shared';
 import { BotSwitcherCard } from './sidebar/BotSwitcherCard';
-import { NavItem, SectionLabel, ModuleNavSections } from './sidebar/ModuleNav';
+import { NavItem, SectionLabel } from './sidebar/ModuleNav';
 
 /**
  * Sidebar props.
@@ -108,7 +114,14 @@ export default function Sidebar({
   const parts = pathname.split('/').filter(Boolean);
   const activeModuleKey = parts[0] === 'bots' && parts[2] === 'm' ? (parts[3] ?? null) : null;
   const botBase = activeBot ? `/bots/${activeBot.id}` : null;
-  const showSearch = Boolean(activeBot) && !collapsed;
+  const { connections, loading: chatsLoading } = useConnections();
+  const workspace = useChatWorkspace();
+  const chats = connections.filter(row => String(row.botId ?? row.bot_id) === activeBot?.id);
+  const chatBase = workspace.connection && botBase ? `${botBase}/chats/${workspace.connection.id}` : null;
+  const visibleModules = localizedModules.filter(module => workspace.modules?.some(row => row.active && row.key === module.key));
+  const filteredModules = visibleModules.filter(module =>
+    normalize(`${module.key} ${module.name} ${module.description}`).includes(normalize(query.trim())));
+  const showSearch = Boolean(chatBase && visibleModules.length) && !collapsed;
 
   // Global Ctrl/⌘+K focuses module search (expanding the rail first if needed).
   useEffect(() => {
@@ -152,14 +165,12 @@ export default function Sidebar({
       }
       return;
     }
-    if (event.key === 'Enter' && botBase) {
+    if (event.key === 'Enter' && chatBase) {
       const needle = normalize(query.trim());
       if (!needle) return;
-      const match = localizedModules.find((module) =>
-        normalize(`${module.key} ${module.name} ${module.description}`).includes(needle),
-      );
+      const match = filteredModules[0];
       if (match) {
-        navigate(`${botBase}/m/${match.key}`);
+        navigate(`${chatBase}/${match.key}`);
         setQuery('');
         onNavigate?.();
       }
@@ -185,6 +196,28 @@ export default function Sidebar({
       <Box sx={{ px: collapsed ? 1.5 : 2, py: 1.5, flexShrink: 0 }}>
         <BotSwitcherCard collapsed={collapsed} onNavigate={onNavigate} />
       </Box>
+
+      {botBase && !collapsed && (
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <Select fullWidth displayEmpty size="small" value={workspace.connection?.id ?? ''}
+            inputProps={{ 'aria-label': t('nav.chooseChat') }}
+            onChange={event => {
+              setQuery('');
+              navigate(event.target.value ? `${botBase}/chats/${event.target.value}` : `${botBase}/m/connections`);
+              onNavigate?.();
+            }}>
+            <MenuItem value="">{t(chatsLoading ? 'common.loading' : 'nav.chooseChat')}</MenuItem>
+            {chats.map(chat => (
+              <MenuItem key={chat.id} value={chat.id}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
+                  <ChatAvatar botId={activeBot!.id} id={chat.id} title={chat.title} size={24} />
+                  <Typography variant="body2" noWrap>{chat.title}</Typography>
+                </Stack>
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
+      )}
 
       {/* Module search */}
       {showSearch && (
@@ -422,6 +455,14 @@ export default function Sidebar({
                     onNavigate={onNavigate}
                   />
                   <NavItem
+                    to={`${botBase}/m/connections`}
+                    icon={<ForumOutlinedIcon />}
+                    label={t('nav.chatConnections')}
+                    selected={activeModuleKey === 'connections'}
+                    collapsed={collapsed}
+                    onNavigate={onNavigate}
+                  />
+                  <NavItem
                     to={`${botBase}/modules`}
                     icon={<ExtensionOutlinedIcon />}
                     label={t('nav.modules')}
@@ -445,14 +486,22 @@ export default function Sidebar({
           </>
         )}
 
-        {activeBot && (
-          <ModuleNavSections
-            botId={activeBot.id}
-            activeModuleKey={activeModuleKey}
-            query={collapsed ? '' : query}
-            collapsed={collapsed}
-            onNavigate={onNavigate}
-          />
+        {chatBase && (
+          <>
+            <SectionLabel label={t('nav.chatOverview')} collapsed={collapsed} />
+            <List dense disablePadding>
+              <NavItem to={chatBase} icon={<ForumOutlinedIcon />} label={t('nav.chatOverview')}
+                selected={pathname === chatBase} collapsed={collapsed} onNavigate={onNavigate} />
+              {filteredModules.map(module => {
+                const Icon = moduleIcon(module.key);
+                return <NavItem key={module.key} to={`${chatBase}/${module.key}`} icon={<Icon />}
+                  label={module.name} selected={workspace.moduleKey === module.key}
+                  collapsed={collapsed} onNavigate={onNavigate} />;
+              })}
+              <NavItem to={`${chatBase}/add`} icon={<AddIcon />} label={t('nav.addChatModule')}
+                selected={workspace.moduleKey === 'add'} collapsed={collapsed} onNavigate={onNavigate} />
+            </List>
+          </>
         )}
       </Box>
 

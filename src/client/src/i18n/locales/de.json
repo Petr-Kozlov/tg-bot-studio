@@ -11,6 +11,16 @@
     "invalid": "Ungültiger Master-Schlüssel"
   },
   "nav": {
+    "chooseChat": "Chat auswählen",
+    "chatConnections": "Chat-Verbindungen",
+    "chatOverview": "Chat-Übersicht",
+    "addChatModule": "Modul hinzufügen",
+    "connectChatModule": "Mit Chat verbinden",
+    "chatModulesEmpty": "Dieser Chat hat noch keine verbundenen Module.",
+    "chatCatalogEmpty": "Alle verfügbaren Module sind verbunden.",
+    "chatRetry": "Erneut versuchen",
+    "chatLoadError": "Die Chat-Module konnten nicht geladen werden.",
+    "chatUnavailable": "Der Chat muss aktiv und für diesen Bot zugelassen sein.",
     "overview": "Alle Bots",
     "botDashboard": "Übersicht",
     "modules": "Module",

@@ -11,6 +11,16 @@
     "invalid": "Неверный мастер-ключ"
   },
   "nav": {
+    "chooseChat": "Выбрать чат",
+    "chatConnections": "Подключения чатов",
+    "chatOverview": "Обзор чата",
+    "addChatModule": "Добавить модуль",
+    "connectChatModule": "Подключить к чату",
+    "chatModulesEmpty": "В этом чате пока нет подключённых модулей.",
+    "chatCatalogEmpty": "Все доступные модули подключены.",
+    "chatRetry": "Повторить",
+    "chatLoadError": "Не удалось загрузить модули чата.",
+    "chatUnavailable": "Для подключения модулей чат должен быть активен и разрешён в настройках бота.",
     "overview": "Все боты",
     "botDashboard": "Обзор",
     "modules": "Модули",

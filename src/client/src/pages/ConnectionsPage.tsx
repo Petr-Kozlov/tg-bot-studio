@@ -27,12 +27,13 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import ChatAvatar from '../components/ChatAvatar';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SyncIcon from '@mui/icons-material/Sync';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { apiFetch } from '../services/api';
@@ -338,16 +339,19 @@ export default function ConnectionsPage({
                   {connections.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
-                        <Typography
-                          variant="body2"
-                          noWrap
-                          sx={{
-                            fontWeight: 600,
-                            maxWidth: 260,
-                          }}
-                        >
-                          {row.title}
-                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                          <ChatAvatar botId={botId} id={row.id} title={row.title} />
+                          <Typography
+                            component={Link}
+                            to={`/bots/${botId}/chats/${row.id}`}
+                            variant="body2"
+                            color="text.primary"
+                            noWrap
+                            sx={{ fontWeight: 600, maxWidth: 260 }}
+                          >
+                            {row.title}
+                          </Typography>
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         <Chip

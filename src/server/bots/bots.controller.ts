@@ -57,6 +57,16 @@ export class BotsController {
     response.set('Cache-Control', 'private, max-age=900').type('jpeg').send(image);
   }
 
+  @Get(':id/connections/:connectionId/avatar')
+  async chatAvatar(@Param('id') id: string, @Param('connectionId') connectionId: string, @Res() response: Response) {
+    const image = await this.botsService.avatar(id, connectionId);
+    if (!image) {
+      response.status(404).end();
+      return;
+    }
+    response.set('Cache-Control', 'private, max-age=900').type('jpeg').send(image);
+  }
+
   /**
    * Fetches one bot with metrics.
    * @param {number} id - Studio bot identifier.

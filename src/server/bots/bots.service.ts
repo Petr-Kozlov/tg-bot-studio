@@ -124,16 +124,19 @@ export class BotsService {
     return { timezone: requested || 'UTC' };
   }
 
-  async avatar(id: string): Promise<Buffer | null> {
+  async avatar(id: string, connectionId?: string): Promise<Buffer | null> {
     const bot = await this.botModel.findById(id);
     if (!bot) this.throwNotFound(id);
+    const connection = connectionId ? await this.prisma.chatConnection.findFirst({ where: { id: connectionId, botId: id } }) : null;
+    if (connectionId && !connection) return null;
     try {
       const api = new Api(bot.token, { timeoutSeconds: 8 });
       const signal = AbortSignal.timeout(8000);
-      const photos = await api.getUserProfilePhotos(Number(bot.token.split(':')[0]), { limit: 1 });
-      const photo = photos.photos[0]?.[0];
-      if (!photo) return null;
-      const file = await api.getFile(photo.file_id);
+      const fileId = connection
+        ? (await api.getChat(connection.chatId)).photo?.small_file_id
+        : (await api.getUserProfilePhotos(Number(bot.token.split(':')[0]), { limit: 1 })).photos[0]?.[0]?.file_id;
+      if (!fileId) return null;
+      const file = await api.getFile(fileId);
       if (!file.file_path) return null;
       const res = await fetch(`https://api.telegram.org/file/bot${bot.token}/${file.file_path}`, {signal});
       return res.ok ? Buffer.from(await res.arrayBuffer()) : null;

@@ -1,7 +1,16 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Put,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ChatSettingsService } from '../bot-engine/chat-settings.service';
-import { findModule } from '../bot-engine/module-registry';
+import { findModule, MODULE_REGISTRY } from '../bot-engine/module-registry';
 import { safeJsonObjectParse } from '../common/utils/json.util';
 
 /**
@@ -21,13 +30,44 @@ export class ChatSettingsController {
     private readonly chatSettings: ChatSettingsService,
   ) {}
 
-  /**
-   * Lists every chat that has an override for one module (module page chips).
-   *
-   * @param {number} botId - Owning bot id.
-   * @param {string} moduleKey - Module registry key.
-   * @returns {Promise<object[]>} Rows of `{ chatId, override }` per chat.
-   */
+  @Get('connections/:connectionId/modules')
+  async forConnection(@Param('botId') botId: string, @Param('connectionId') connectionId: string) {
+    const connection = await this.prisma.chatConnection.findFirst({
+      where: { id: connectionId, botId },
+    });
+    if (!connection) throw new NotFoundException('Chat connection not found');
+    const [rows, allowedGroup] = await Promise.all([
+      this.prisma.botModule.findMany({
+        where: { botId, isEnabled: 1 },
+        select: { moduleKey: true },
+      }),
+      this.prisma.botSetting.findUnique({
+        where: { botId_key: { botId, key: 'allowed_group_id' } },
+      }),
+    ]);
+    const enabled = new Set(rows.map((row) => row.moduleKey));
+    const available =
+      Boolean(connection.isActive) &&
+      /^-?\d+$/.test(connection.chatId) &&
+      (!allowedGroup ||
+        (connection.type === 'supergroup' && connection.chatId === allowedGroup.value));
+    const modules = MODULE_REGISTRY.filter(
+      (module) =>
+        module.chatScoped && (connection.type !== 'channel' || module.key === 'reactions'),
+    );
+    return Promise.all(
+      modules.map(async (module) => ({
+        key: module.key,
+        available,
+        active:
+          available &&
+          enabled.has(module.key) &&
+          (await this.chatSettings.isTargeted(botId, connection.chatId, module.key)),
+        enabledForBot: enabled.has(module.key),
+      })),
+    );
+  }
+
   @Get('modules/:moduleKey/chat-overrides')
   async listForModule(@Param('botId') botId: string, @Param('moduleKey') moduleKey: string) {
     this.assertChatScoped(moduleKey);
@@ -138,6 +178,7 @@ export class ChatSettingsController {
     const definition = findModule(moduleKey);
     if (!definition) return; // assertChatScoped already rejected unknown modules
     const allowed = new Set(Object.keys(definition.defaultConfig ?? {}));
+    if (typeof body.enabled === 'boolean') allowed.add('enabled');
     const unknown = Object.keys(body).filter((key) => !allowed.has(key));
     if (unknown.length > 0) {
       throw new BadRequestException(

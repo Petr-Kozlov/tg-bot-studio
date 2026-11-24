@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Card,
@@ -38,6 +37,7 @@ import FileUploadIcon from '@mui/icons-material/FileUpload';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import BookmarkAddIcon from '@mui/icons-material/BookmarkAdd';
 import DashboardCustomizeIcon from '@mui/icons-material/DashboardCustomize';
+import { BotAvatar } from '../components/sidebar/shared';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -497,32 +497,7 @@ export default function BotDashboardPage(): React.ReactElement {
         >
           {/* Bot Profile */}
           <Stack direction="row" spacing={2.5} sx={{ alignItems: 'center', minWidth: 0 }}>
-            <Box sx={{ position: 'relative', flexShrink: 0 }}>
-              <Avatar
-                sx={{
-                  width: { xs: 56, sm: 64 },
-                  height: { xs: 56, sm: 64 },
-                  borderRadius: 2.5,
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  boxShadow: '0 8px 16px -4px rgba(37, 99, 235, 0.35)',
-                }}
-              >
-                <SmartToyIcon sx={{ fontSize: { xs: 32, sm: 38 }, color: '#fff' }} />
-              </Avatar>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: -2,
-                  right: -2,
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  bgcolor: bot.is_active === 1 ? '#16a34a' : '#94a3b8',
-                  border: '2.5px solid',
-                  borderColor: 'background.paper',
-                }}
-              />
-            </Box>
+            <BotAvatar bot={bot} size={60} />
 
             <Box sx={{ minWidth: 0 }}>
               <Stack
