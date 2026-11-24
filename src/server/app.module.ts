@@ -22,6 +22,7 @@ import { GroupModerationModule } from './modules/group-moderation/group-moderati
 import { GroupToolsModule } from './modules/group-tools/group-tools.module';
 import { LocksModule } from './modules/locks/locks.module';
 import { AntiraidModule } from './modules/antiraid/antiraid.module';
+import {AchievementModule} from './modules/achievements/achievement.module';
 import { SocialRatingModule } from './modules/social-rating/social-rating.module';
 import { RulesModule } from './modules/rules/rules.module';
 import { AdminLogModule } from './modules/admin-log/admin-log.module';
@@ -92,6 +93,7 @@ import { TemplatesModule } from './templates/templates.module';
     GroupToolsModule,
     LocksModule,
     AntiraidModule,
+    AchievementModule,
     SocialRatingModule,
     RulesModule,
     AdminLogModule,

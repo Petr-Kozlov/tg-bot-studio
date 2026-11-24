@@ -4,7 +4,8 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { readFileSync } from 'node:fs';
 import { findModule } from '../bot-engine/module-registry';
-import { collection } from '../modules/social-rating/achievement.service';
+import { collection } from '../modules/achievements/achievement.service';
+import { AchievementRuntime } from '../modules/achievements/achievement.runtime';
 import { SocialRatingRuntime } from '../modules/social-rating/social-rating.runtime';
 
 test('awards one point per giver and original group message; ranks the last 30 days', async () => {
@@ -47,6 +48,20 @@ test('awards one point per giver and original group message; ranks the last 30 d
       { isTargeted: async () => true, getEffectiveConfig: async () => config } as never,
       { register() {} } as never,
     );
+    const activity = new Map<string, Function>();
+    new AchievementRuntime(
+      db as never,
+      { isTargeted: async () => true } as never,
+      { register() {} } as never,
+    ).register({
+      botId: 'b',
+      config: {},
+      bot: {
+        on: (k: string, v: Function) => activity.set(k, v),
+        command() {},
+        callbackQuery() {},
+      } as never,
+    });
     runtime.register({
       botId: 'b',
       config: {},
@@ -96,7 +111,8 @@ test('awards one point per giver and original group message; ranks the last 30 d
     expect(out.at(-1)).toContain('Пока нет благодарностей');
     const author = c.msg.reply_to_message.from;
     const chat = c.chat;
-    const run = (name: string, update: unknown) => handlers.get(name)!(update, async () => {});
+    const run = (name: string, update: unknown) =>
+      activity.get(name)!(update, () => handlers.get(name)!(update, async () => {}));
     const observe = (message_id: number) =>
       run('message', { chat, msg: { message_id, from: author } });
     const notices: Array<[string, unknown]> = [];

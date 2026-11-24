@@ -82,7 +82,7 @@ export default function ChatWorkspacePage() {
           </Typography>
         </Box>
       </Stack>
-      {selected?.key === 'social-rating' && (
+      {selected?.key === 'achievements' && (
         <AchievementEditor
           key={connection.id}
           bot={botId}

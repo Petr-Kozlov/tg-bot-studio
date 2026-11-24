@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { persistIcon, iconRoute } from './achievement-icons';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -34,6 +35,7 @@ export async function collection(
  WHERE a.bot_id=${bot} AND a.chat_id=${chat} ORDER BY a.kind,a.threshold,a.title`;
   return rows.map((r) => ({
     ...r,
+    icon: r.icon ? iconRoute + r.icon : '',
     threshold: Number(r.threshold),
     value: Math.max(0, Number(r.value)),
     condition: conditions[r.kind],
@@ -42,18 +44,35 @@ export async function collection(
 @Injectable()
 export class AchievementService {
   constructor(private readonly db: PrismaService) {}
+  async onModuleInit() {
+    const rows = await this.db.$queryRaw<
+      { id: string; icon: string }[]
+    >`SELECT id,icon FROM achievements WHERE icon LIKE 'data:%'`;
+    for (const row of rows) {
+      const key = await persistIcon(row.icon);
+      await this.db
+        .$executeRaw`UPDATE achievements SET icon=${key} WHERE id=${row.id} AND icon=${row.icon}`;
+    }
+  }
   async list(bot: string, chat: string) {
     const rows = await this.db.$queryRaw<
       Achievement[]
     >`SELECT id,title,description,kind,threshold,icon FROM achievements WHERE bot_id=${bot} AND chat_id=${chat} ORDER BY kind,threshold,title`;
-    return { conditions, items: rows.map((r) => ({ ...r, threshold: Number(r.threshold) })) };
+    return {
+      conditions,
+      items: rows.map((r) => ({
+        ...r,
+        icon: r.icon ? iconRoute + r.icon : '',
+        threshold: Number(r.threshold),
+      })),
+    };
   }
   async save(bot: string, chat: string, id: string | null, input: Partial<Achievement>) {
     const title = String(input.title ?? '').trim(),
       description = String(input.description ?? '').trim(),
       kind = input.kind,
       goal = input.threshold,
-      icon = input.icon ?? '';
+      source = input.icon ?? '';
     if (
       !title ||
       title.length > 60 ||
@@ -66,19 +85,16 @@ export class AchievementService {
       goal > 10000000
     )
       throw new BadRequestException('Проверьте название, условие и порог');
-    if (typeof icon !== 'string' || icon.length > 160000)
-      throw new BadRequestException('Слишком большая иконка');
-    if (icon) {
-      const m = /^data:image\/(png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(icon);
-      const bytes = Buffer.from(m?.[2] ?? '', 'base64');
-      if (
-        !m ||
-        (m[1] === 'png'
-          ? !bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))
-          : bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP')
-      )
-        throw new BadRequestException('Выберите PNG или WebP');
-    }
+    let icon = '';
+    if (typeof source !== 'string') throw new BadRequestException('Некорректная иконка');
+    if (source.startsWith(iconRoute) && id) {
+      const [existing] = await this.db.$queryRaw<
+        { icon: string }[]
+      >`SELECT icon FROM achievements WHERE id=${id} AND bot_id=${bot} AND chat_id=${chat}`;
+      if (!existing || source !== iconRoute + existing.icon)
+        throw new BadRequestException('Выберите файл иконки');
+      icon = existing.icon;
+    } else if (source) icon = await persistIcon(source);
     if (id) {
       const changed = await this.db
         .$executeRaw`UPDATE achievements SET title=${title},description=${description},kind=${kind},threshold=${goal},icon=${icon} WHERE bot_id=${bot} AND chat_id=${chat} AND id=${id}`;

@@ -8,6 +8,8 @@ import {
   Put,
   Req,
   UseGuards,
+  Header,
+  Res,
   NotFoundException,
 } from '@nestjs/common';
 import { AchievementService, collection } from './achievement.service';
@@ -15,6 +17,15 @@ import { PrismaService } from '../../database/prisma.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { TmaInitDataGuard, type TmaUser } from '../../common/guards/tma-init-data.guard';
 
+import { iconFile } from './achievement-icons';
+import type { Response } from 'express';
+@Controller('achievement-icons')
+export class IconController {
+  @Public() @Get(':key') read(@Param('key') key: string, @Res() res: Response) {
+    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(iconFile(key));
+  }
+}
 @Controller('bots/:bot/chat-achievements/:chat')
 export class AchievementController {
   constructor(private readonly service: AchievementService) {}
@@ -49,6 +60,7 @@ export class AchievementCollectionController {
   constructor(private readonly db: PrismaService) {}
   @Public()
   @UseGuards(TmaInitDataGuard)
+  @Header('Cache-Control','private, no-store')
   @Get(':slug/achievements')
   async mine(@Param('slug') slug: string, @Req() req: { tmaUser: TmaUser }) {
     const app = await this.db.miniApp.findFirst({

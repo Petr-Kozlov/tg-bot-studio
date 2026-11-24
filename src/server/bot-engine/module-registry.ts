@@ -266,6 +266,14 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     chatScoped: true,
   },
   {
+    key: 'achievements',
+    name: 'Ачивки',
+    category: 'Community & Moderation',
+    description: 'Личная коллекция наград за рейтинг, помощь, общение и реакции.',
+    chatScoped: true,
+    defaultConfig:{launchUrl:''},
+  },
+  {
     key: 'social-rating',
     name: 'Социальный рейтинг',
     category: 'Community & Moderation',

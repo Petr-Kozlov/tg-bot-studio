@@ -1299,6 +1299,14 @@ export const MODULES: ModuleEntry[] = [
     },
   },
   {
+    key: 'achievements',
+    name: 'Ачивки',
+    category: 'Community & Moderation',
+    description: 'Личная коллекция наград за рейтинг, помощь, общение и реакции.',
+    chatScoped: true,
+    pageType:'config',configFields:[{key:'launchUrl',type:'text',label:'Ссылка Telegram Mini App'}],docs:{overview:['Коллекция участника'],setup:['Подключите чат и создайте награды.'],troubleshooting:[]},
+  },
+  {
     key: 'social-rating',
     name: 'Социальный рейтинг',
     category: 'Community & Moderation',

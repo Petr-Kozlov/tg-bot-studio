@@ -1,0 +1,53 @@
+.achievement-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  color: var(--tg-hint-color);
+}
+.achievement-summary strong {
+  font-size: 2rem;
+  color: var(--tg-text-color);
+}
+.achievement-group {
+  margin: 1.4rem 0;
+}
+.achievement-group h2 {
+  font-size: 1.08rem;
+  margin-bottom: 0.55rem;
+}
+.achievement-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--card-border);
+  padding: 13px 0;
+}
+.achievement-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 13px;
+  background: var(--tg-secondary-bg-color);
+  font-size: 1.65rem;
+}
+.achievement-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.achievement-entry[data-locked='true'] .achievement-icon {
+  filter: grayscale(0.85);
+}
+.achievement-entry h3 {
+  font-size: 1rem;
+}
+.achievement-entry small,
+.achievement-entry p {
+  color: var(--tg-hint-color);
+}
+.achievement-entry progress {
+  max-width: 60%;
+  accent-color: var(--tg-button-color);
+}

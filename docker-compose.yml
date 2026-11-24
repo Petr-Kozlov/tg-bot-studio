@@ -4,6 +4,13 @@
 # port: 3000
 
 services:
+  collection:
+    build: ./deploy/collection
+    restart: unless-stopped
+    expose:
+      - 8080
+    depends_on:
+      - studio
   studio:
     build:
       context: .

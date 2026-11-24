@@ -498,6 +498,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
           { command: 'rating', description: 'Посмотреть социальный рейтинг' },
           { command: 'toprating', description: 'Топ участников за 30 дней' },
         );
+        if(enabled.has('achievements'))commands.push({command:'achievements',description:'Моя коллекция ачивок'});
         const scope = { type: 'chat' as const, chat_id: Number(allowedGroup) };
         const adminScope = { type: 'chat_administrators' as const, chat_id: Number(allowedGroup) };
         if (enabled.has('social-rating')) await bot.api.setMyCommands([...commands,

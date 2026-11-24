@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Database } from 'bun:sqlite';
+import { iconFile } from '../modules/achievements/achievement-icons';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 
@@ -75,11 +77,37 @@ export class BackupService {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `studio_backup_${timestamp}.db`;
     const fullPath = path.join(this.backupDir, filename);
-    const escapedSqlPath = fullPath.replace(/\\/g, '/');
+    const staging = fullPath + '.partial';
+    const escapedSqlPath = staging.replace(/\\/g, '/');
 
     this.logger.log(`Creating database backup at ${fullPath}...`);
     await this.prisma.$executeRawUnsafe(`VACUUM INTO '${escapedSqlPath}'`);
 
+    try {
+      const snapshot = new Database(staging);
+      try {
+        const icons = snapshot
+          .query("SELECT DISTINCT icon FROM achievements WHERE icon<>'' AND icon NOT LIKE 'data:%'")
+          .all() as { icon: string }[];
+        snapshot.transaction(() => {
+          for (const { icon } of icons) {
+            const data = fs.readFileSync(iconFile(icon));
+            snapshot
+              .query('UPDATE achievements SET icon=? WHERE icon=?')
+              .run(
+                'data:image/' + path.extname(icon).slice(1) + ';base64,' + data.toString('base64'),
+                icon,
+              );
+          }
+        })();
+      } finally {
+        snapshot.close();
+      }
+      fs.renameSync(staging, fullPath);
+    } catch (error) {
+      fs.rmSync(staging, { force: true });
+      throw error;
+    }
     const stats = fs.statSync(fullPath);
     this.logger.log(`Backup completed successfully: ${filename} (${stats.size} bytes)`);
 
