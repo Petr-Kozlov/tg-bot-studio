@@ -460,7 +460,7 @@ function ChatConfigEditor({
       .then((snapshot) => {
         if (!cancelled) {
           setDraft({ ...snapshot.effective });
-          setBaseline({});
+          setBaseline(snapshot.overridden ? { ...snapshot.effective } : {});
         }
       })
       .catch(() => {
@@ -509,6 +509,7 @@ function ChatConfigEditor({
     })
       .then(() => {
         onApply(chatId, { ...payload });
+        setDraft({ ...payload });
         setBaseline({ ...payload });
         setSavedFlash(true);
         window.setTimeout(() => setSavedFlash(false), 2_500);

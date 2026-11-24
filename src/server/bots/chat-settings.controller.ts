@@ -58,14 +58,14 @@ export class ChatSettingsController {
   ) {
     this.assertChatScoped(moduleKey);
     this.assertNumericChatId(chatId);
-    const override = (await this.chatSettings.getOverride(botId, chatId, moduleKey)) ?? {};
+    const override = await this.chatSettings.getOverride(botId, chatId, moduleKey);
     const effective = await this.chatSettings.getEffectiveConfig(botId, chatId, moduleKey);
     return {
       moduleKey,
       chatId,
-      override,
+      override: override ?? {},
       effective,
-      overridden: Object.keys(override).length > 0,
+      overridden: override !== null,
     };
   }
 
