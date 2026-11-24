@@ -8,6 +8,7 @@ import Forms from './templates/Forms';
 import Spin from './templates/Spin';
 import Webview from './templates/Webview';
 import Leaderboard from './templates/Leaderboard';
+import Profile from './templates/Profile';
 import Achievements from './templates/Achievements';
 import Support from './templates/Support';
 
@@ -193,6 +194,8 @@ function TemplateRenderer({ config }: { config: TmaAppConfig }): React.ReactElem
       return <Webview config={config} />;
     case 'leaderboard':
       return <Leaderboard config={config} />;
+    case 'profile':
+      return <Profile slug={config.slug} />;
     case 'achievements':
       return <Achievements slug={config.slug} />;
     case 'support':

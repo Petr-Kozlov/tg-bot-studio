@@ -23,6 +23,7 @@ const TEMPLATE_TYPES = [
   'forms',
   'spin',
   'webview',
+  'profile',
   'achievements',
   'leaderboard',
   'support',

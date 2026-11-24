@@ -18,6 +18,7 @@ import { Public } from '../../common/decorators/public.decorator';
 import { TmaInitDataGuard, type TmaUser } from '../../common/guards/tma-init-data.guard';
 
 import { iconFile } from './achievement-icons';
+import { socialScore } from '../social-rating/social-score';
 import type { Response } from 'express';
 @Controller('achievement-icons')
 export class IconController {
@@ -60,11 +61,26 @@ export class AchievementCollectionController {
   constructor(private readonly db: PrismaService) {}
   @Public()
   @UseGuards(TmaInitDataGuard)
-  @Header('Cache-Control','private, no-store')
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':slug/summary')
+  async summary(@Param('slug') slug: string, @Req() req: { tmaUser: TmaUser }) {
+    const app = await this.db.miniApp.findFirst({
+      where: { slug, templateType: 'profile', isActive: 1 },
+    });
+    const chat = JSON.parse(app?.configJson ?? '{}').chatId;
+    if (!app || typeof chat !== 'string') throw new NotFoundException();
+    return {
+      name: req.tmaUser.first_name ?? req.tmaUser.username ?? 'Участник',
+      score: await socialScore(this.db, app.botId, chat, String(req.tmaUser.id)),
+    };
+  }
+  @Public()
+  @UseGuards(TmaInitDataGuard)
+  @Header('Cache-Control', 'private, no-store')
   @Get(':slug/achievements')
   async mine(@Param('slug') slug: string, @Req() req: { tmaUser: TmaUser }) {
     const app = await this.db.miniApp.findFirst({
-      where: { slug, templateType: 'achievements', isActive: 1 },
+      where: { slug, templateType: { in: ['achievements', 'profile'] }, isActive: 1 },
     });
     if (!app) throw new NotFoundException();
     const chat = JSON.parse(app.configJson ?? '{}').chatId;

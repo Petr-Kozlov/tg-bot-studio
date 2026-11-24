@@ -1,3 +1,4 @@
+import { socialScore } from './social-score';
 import { Injectable } from '@nestjs/common';
 import type { Context } from 'grammy';
 import { BotModuleHandler, type ModuleRuntimeContext } from '../../bot-engine/bot-module-handler';
@@ -141,16 +142,10 @@ export class SocialRatingRuntime extends BotModuleHandler {
       const original = replied?.is_automatic_forward ? undefined : replied;
       const user = original ? original.from : c.from;
       if (!user || user.is_bot || original?.sender_chat) return;
-      const count = await this.db.socialRatingAward.count({
-        where: { botId, chatId: String(c.chat.id), recipient: String(user.id) },
-      });
+      const score = await socialScore(this.db, botId, String(c.chat.id), String(user.id));
       const body = format(await options(c.chat.id), 'balanceText', {
         name: user.first_name,
-        score:
-          count -
-          (await this.db.socialRatingPenalty.count({
-            where: { botId, chatId: String(c.chat.id), recipient: String(user.id), undoneBy: null },
-          })),
+        score,
       });
       if (body) await c.reply(body);
     });

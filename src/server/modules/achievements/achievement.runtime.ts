@@ -31,7 +31,7 @@ export class AchievementRuntime extends BotModuleHandler {
       const url = String(cfg.launchUrl ?? '');
       if (url !== 'https://t.me/' + c.me.username + '?startapp') return;
       if (!(await c.api.getMe()).has_main_web_app) return;
-      return { text: '🏆 Мои ачивки', url };
+      return { text: '🎮 Мой профиль', url };
     };
     const alertPages = new Map<string, number>();
     // Telegram alerts are personal and limited to 200 characters.
@@ -129,7 +129,7 @@ export class AchievementRuntime extends BotModuleHandler {
         text: '🏆 Мои ачивки',
         callback_data: 'ach:list',
       };
-      await c.reply('Личная коллекция ачивок', { reply_markup: { inline_keyboard: [[button]] } });
+      await c.reply('Профиль GameDev', { reply_markup: { inline_keyboard: [[button]] } });
     });
   }
 }

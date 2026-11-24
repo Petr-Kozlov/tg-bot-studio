@@ -1,0 +1,1 @@
+UPDATE mini_apps SET slug='profile', template_type='profile', title='Профиль GameDev', name='Профиль GameDev' WHERE bot_id='96e9312f-b77a-4a48-b096-0c1aecac6441' AND slug='gamedev-achievements' AND template_type='achievements';
