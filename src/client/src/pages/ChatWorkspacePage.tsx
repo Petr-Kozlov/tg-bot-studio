@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { useChatWorkspace } from '../context/ChatWorkspaceContext';
 import { useLocalizedModules } from '../registry/localize';
 import { ChatModuleConfigsSection } from '../components/ChatModuleConfigsSection';
+import AchievementEditor from '../components/AchievementEditor';
 import ChatAvatar from '../components/ChatAvatar';
 import { apiFetch } from '../services/api';
 import { localizedErrorMessage } from '../utils/errors';
@@ -81,6 +82,13 @@ export default function ChatWorkspacePage() {
           </Typography>
         </Box>
       </Stack>
+      {selected?.key === 'social-rating' && (
+        <AchievementEditor
+          key={connection.id}
+          bot={botId}
+          chat={String(connection.chat_id ?? connection.chatId)}
+        />
+      )}
       {selected && !adding ? (
         <ChatModuleConfigsSection
           key={`${connection.id}/${selected.key}`}

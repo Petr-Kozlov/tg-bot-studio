@@ -23,6 +23,7 @@ const TEMPLATE_TYPES = [
   'forms',
   'spin',
   'webview',
+  'achievements',
   'leaderboard',
   'support',
 ] as const;

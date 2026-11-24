@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { readFileSync } from 'node:fs';
 import { findModule } from '../bot-engine/module-registry';
+import { collection } from '../modules/social-rating/achievement.service';
 import { SocialRatingRuntime } from '../modules/social-rating/social-rating.runtime';
 
 test('awards one point per giver and original group message; ranks the last 30 days', async () => {
@@ -28,6 +29,14 @@ test('awards one point per giver and original group message; ranks the last 30 d
       .map((s) => s.trim())
       .filter(Boolean))
       await db.$executeRawUnsafe(sql);
+    const achievementSql = readFileSync(
+      'prisma/migrations/20261124030000_chat_achievements/migration.sql',
+      'utf8',
+    );
+    for (const statement of achievementSql
+      .split(/;\s*(?=CREATE |INSERT INTO achievement_metrics(?:\(| SELECT)|$)/)
+      .filter((s) => s.trim()))
+      await db.$executeRawUnsafe(statement);
     const handlers = new Map<string, Function>();
     const register = (name: string | string[], fn: Function) => {
       for (const key of [name].flat()) handlers.set(key, fn);
@@ -38,7 +47,11 @@ test('awards one point per giver and original group message; ranks the last 30 d
       { isTargeted: async () => true, getEffectiveConfig: async () => config } as never,
       { register() {} } as never,
     );
-    runtime.register({ botId: 'b', config: {}, bot: { command: register, on: register } as never });
+    runtime.register({
+      botId: 'b',
+      config: {},
+      bot: { command: register, on: register, callbackQuery: register } as never,
+    });
     const out: string[] = [];
     const c = {
       chat: { id: -1, type: 'supergroup' },
@@ -145,6 +158,13 @@ test('awards one point per giver and original group message; ranks the last 30 d
     expect(out.at(-1)).toBe('Маша ★ 5');
     await handlers.get('toprating')!(c);
     expect(out.at(-1)).toBe('Наши герои\n1 🎖️ Маша +4');
+    await db.$executeRaw`INSERT INTO achievements(id,bot_id,chat_id,title,description,kind,threshold) VALUES ('first','b','-1','Первый балл','','rating',5)`;
+    const progress = () => collection(db as never, 'b', '-1', '22', false);
+    expect((await progress())[0]).toMatchObject({
+      value: 5,
+      threshold: 5,
+      unlocked: expect.any(String),
+    });
     const moderate = (cmd: string, reason: string, status: string) =>
       handlers.get(cmd)!({
         ...c,
@@ -164,6 +184,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await moderate('minus', 'ещё', 'creator');
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Маша ★ 4');
+    expect((await progress())[0]).toMatchObject({ value: 4, unlocked: expect.any(String) });
     await handlers.get('toprating')!(c);
     expect(out.at(-1)).toContain('Маша +3');
     await moderate('undo_minus', '', 'member');
@@ -173,6 +194,21 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await moderate('undo_minus', '', 'administrator');
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Маша ★ 5');
+    await run('message', { chat, msg: { message_id: 120, from: author, text: 'Привет' } });
+    await run('message', { chat, msg: { message_id: 120, from: author, text: 'Привет' } });
+    const metrics = await db.$queryRaw<
+      { kind: string; value: bigint }[]
+    >`SELECT kind,value FROM achievement_metrics WHERE user_id='22' ORDER BY kind`;
+    expect(Object.fromEntries(metrics.map((m) => [m.kind, Number(m.value)]))).toMatchObject({
+      messages: 1,
+      rating: 5,
+      comment: 2,
+      helpers: 3,
+    });
+    const count = await db.$queryRaw<
+      { value: bigint }[]
+    >`SELECT value FROM achievement_metrics WHERE user_id='33' AND kind='reactions'`;
+    expect(Number(count[0].value)).toBe(2);
   } finally {
     await db.$disconnect();
   }

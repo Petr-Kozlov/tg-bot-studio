@@ -16,6 +16,9 @@ model Bot {
   createdAt String? @map("created_at")
   updatedAt String? @map("updated_at")
 
+  achievements Achievement[]
+  achievementMetrics AchievementMetric[]
+  achievementActivities AchievementActivity[]
   ratingMessageAuthors SocialRatingMessageAuthor[]
   ratingPenalties SocialRatingPenalty[]
   ratingAwards      SocialRatingAward[]
@@ -54,6 +57,49 @@ model Bot {
   healthEvents     HealthEvent[]
 
   @@map("bots")
+}
+
+model Achievement {
+  id String @id
+  botId String @map("bot_id")
+  chatId String @map("chat_id")
+  title String
+  description String
+  kind String
+  threshold Int
+  icon String @default("")
+  bot Bot @relation(fields:[botId], references:[id], onDelete:Cascade)
+  unlocks AchievementUnlock[]
+  @@index([botId,chatId,kind,threshold],map:"achievements_scope")
+  @@map("achievements")
+}
+model AchievementMetric {
+  botId String @map("bot_id")
+  chatId String @map("chat_id")
+  userId String @map("user_id")
+  kind String
+  value Int
+  bot Bot @relation(fields:[botId], references:[id], onDelete:Cascade)
+  @@id([botId,chatId,userId,kind])
+  @@map("achievement_metrics")
+}
+model AchievementActivity {
+  botId String @map("bot_id")
+  chatId String @map("chat_id")
+  userId String @map("user_id")
+  kind String
+  messageId Int @map("message_id")
+  bot Bot @relation(fields:[botId], references:[id], onDelete:Cascade)
+  @@id([botId,chatId,userId,kind,messageId])
+  @@map("achievement_activity")
+}
+model AchievementUnlock {
+  achievementId String @map("achievement_id")
+  userId String @map("user_id")
+  unlockedAt String @default(dbgenerated("CURRENT_TIMESTAMP")) @map("unlocked_at")
+  achievement Achievement @relation(fields:[achievementId],references:[id],onDelete:Cascade)
+  @@id([achievementId,userId])
+  @@map("achievement_unlocks")
 }
 
 model SocialRatingMessageAuthor {
@@ -98,6 +144,8 @@ model SocialRatingAward {
   @@id([botId, chatId, messageId, giver])
   @@index([botId, chatId, recipient])
   @@index([botId, chatId, awardedAt])
+  @@index([botId,chatId,giver,recipient],map:"rating_giver_recipient")
+  @@index([botId,chatId,recipient,giver],map:"rating_recipient_giver")
   @@map("social_rating_awards")
 }
 
