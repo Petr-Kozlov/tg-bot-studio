@@ -335,10 +335,17 @@ export class GroupToolsRuntime extends BotModuleHandler {
     const group = await this.guard(c, botId, 'report');
     if (!group) return;
     const { chatId, lang } = group;
-    if (chatId === -100_200_000_000 || !(await this.adminGate.isAdmin(c.api, chatId, c.from!.id))) {
-      await this.notifyAdmins(c, botId, chatId, lang);
+    const config = await this.chatSettings.getEffectiveConfig(botId, chatId, this.moduleKey);
+    if (config.reportsEnabled === false) return;
+    if (!c.msg?.reply_to_message) {
+      await c.reply(
+        lang === 'ru'
+          ? 'Ответьте командой /report на сообщение, на которое хотите пожаловаться.'
+          : 'Reply to the message you want to report with /report.',
+      );
       return;
     }
+    await this.notifyAdmins(c, botId, chatId, lang);
   }
 
   /**
@@ -367,6 +374,7 @@ export class GroupToolsRuntime extends BotModuleHandler {
     await c
       .reply(`${this.i18n.t(lang, 'reports.reported')} ${mentions}\n${reporter} → ${reported}`, {
         parse_mode: 'HTML',
+        reply_parameters: { message_id: c.msg!.reply_to_message!.message_id },
       })
       .catch(() => undefined);
     this.adminLog.emit({

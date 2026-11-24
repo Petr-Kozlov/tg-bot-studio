@@ -129,7 +129,9 @@ describe('ChatSettingsService & SimulatorService module execution', () => {
 
     const chatOverrides = new Map<string, Record<string, unknown>>();
 
+    let allowedGroup: string | null = null;
     const prismaStub = {
+      botSetting: { findUnique: async () => allowedGroup && { value: allowedGroup } },
       bot: {
         findUnique: async () => ({ id: botId, name: 'TestBot' }),
       },
@@ -313,5 +315,11 @@ describe('ChatSettingsService & SimulatorService module execution', () => {
     });
     expect(urlMsgRes.unmatched).toBe(false);
     expect(urlMsgRes.text).toContain('Message deleted');
+
+    allowedGroup = '-100123456';
+    const privateRules = await simulator.send(botId, { text: '/rules', chatType: 'private' });
+    expect(privateRules.unmatched).toBe(true);
+    const groupRules = await simulator.send(botId, { text: '/rules', chatType: 'supergroup' });
+    expect(groupRules.unmatched).toBe(false);
   });
 });

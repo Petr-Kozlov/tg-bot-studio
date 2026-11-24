@@ -178,6 +178,13 @@ export class SimulatorService {
       return { text: `Bot ${botId} not found`, unmatched: true };
     }
 
+    const allowedGroup = await this.prisma.botSetting.findUnique({
+      where: { botId_key: { botId, key: 'allowed_group_id' } },
+    });
+    if (allowedGroup && input.chatType !== 'group' && input.chatType !== 'supergroup') {
+      return { text: 'Личные сообщения отключены для этого бота.', unmatched: true };
+    }
+
     // Cast keeps this resilient across grammy/@grammyjs/types versions; the
     // sandbox never talks to the network, so only identity fields matter.
     const botInfo = {
@@ -371,6 +378,7 @@ export class SimulatorService {
       // automatically try the alternate surface (e.g. group command typed on
       // Private DM tab or private command typed on Group tab).
       if (
+        !allowedGroup &&
         !input._isRetry &&
         input.callbackData === undefined &&
         (input.event ?? 'message') === 'message'

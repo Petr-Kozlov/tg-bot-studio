@@ -166,6 +166,15 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
       bot.catch((error) => {
         this.logger.error(`Bot ${row.id} update error: ${error.message}`);
       });
+      const chatSetting = await this.prisma.botSetting.findUnique({
+        where: { botId_key: { botId: row.id, key: 'allowed_group_id' } },
+      });
+      const allowedGroup = chatSetting?.value;
+      if (allowedGroup !== undefined) {
+        bot.use(async (ctx, next) => {
+          if (ctx.chat?.type === 'supergroup' && String(ctx.chat.id) === allowedGroup) await next();
+        });
+      }
       this.attachEngineMiddleware(bot, row.id);
       await this.attachModules(bot, row.id);
       this.attachStarsPaymentHandlers(bot, row.id);
@@ -179,7 +188,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
 
       // Register the group command menu (reference parity) for bots running any
       // in-group module; idempotent and best-effort.
-      void this.registerGroupCommands(bot, row.id);
+      void this.registerGroupCommands(bot, row.id, allowedGroup);
 
       void bot
         .start({
@@ -463,7 +472,11 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
    * @param {number} botId - Studio bot id.
    * @returns {Promise<void>} Resolves once attempted.
    */
-  private async registerGroupCommands(bot: Bot, botId: string): Promise<void> {
+  private async registerGroupCommands(
+    bot: Bot,
+    botId: string,
+    allowedGroup?: string,
+  ): Promise<void> {
     try {
       const rows = await this.prisma.botModule.findMany({
         where: { botId, isEnabled: 1 },
@@ -472,6 +485,18 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
       const enabled = new Set(rows.map((row) => row.moduleKey));
 
       const commands: Array<{ command: string; description: string }> = [];
+      if (allowedGroup !== undefined) {
+        if (enabled.has('rules'))
+          commands.push({ command: 'rules', description: 'Показать правила чата' });
+        if (enabled.has('group-tools')) {
+          commands.push({ command: 'report', description: 'Пожаловаться в ответ на сообщение' });
+        }
+        const scope = { type: 'chat' as const, chat_id: Number(allowedGroup) };
+        if (commands.length) await bot.api.setMyCommands(commands, { scope });
+        else await bot.api.deleteMyCommands({ scope });
+        await bot.api.deleteMyCommands({ scope: { type: 'all_group_chats' } });
+        return;
+      }
       if (enabled.has('group-moderation')) {
         commands.push(
           { command: 'ban', description: 'Ban a member' },
@@ -510,7 +535,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
 
       await bot.api.setMyCommands(commands, { scope: { type: 'all_group_chats' } });
     } catch {
-      // Command registration is cosmetic; poller errors surface elsewhere.
+      this.logger.warn(`Could not register group commands for bot ${botId}`);
     }
   }
 
