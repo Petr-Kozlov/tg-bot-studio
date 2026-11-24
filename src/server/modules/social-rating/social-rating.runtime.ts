@@ -25,6 +25,42 @@ export class SocialRatingRuntime extends BotModuleHandler {
       (c.chat?.type === 'group' || c.chat?.type === 'supergroup') &&
       this.settings.isTargeted(botId, c.chat.id, this.moduleKey);
 
+    bot.on('message', async (c, next) => {
+      const author = c.msg.from;
+      if (author && !author.is_bot && !c.msg.sender_chat && (await targeted(c))) {
+        await this.db.$executeRaw`
+          INSERT INTO social_rating_message_authors (bot_id, chat_id, message_id, author, author_name)
+          VALUES (${botId}, ${String(c.chat.id)}, ${c.msg.message_id}, ${String(author.id)}, ${author.first_name})
+          ON CONFLICT (bot_id, chat_id, message_id) DO NOTHING`;
+      }
+      await next();
+    });
+
+    bot.on('message_reaction', async (c, next) => {
+      const event = c.messageReaction;
+      const giver = event.user;
+      const isThanks = (r: (typeof event.new_reaction)[number]) =>
+        r.type === 'emoji' && r.emoji === '🙏';
+      if (
+        giver &&
+        !giver.is_bot &&
+        !event.actor_chat &&
+        event.new_reaction.some(isThanks) &&
+        !event.old_reaction.some(isThanks) &&
+        (await targeted(c))
+      ) {
+        const giverId = String(giver.id);
+        await this.db.$executeRaw`
+          INSERT INTO social_rating_awards (bot_id, chat_id, message_id, giver, recipient, recipient_name, awarded_at)
+          SELECT bot_id, chat_id, message_id, ${giverId}, author, author_name, ${new Date()}
+          FROM social_rating_message_authors
+          WHERE bot_id = ${botId} AND chat_id = ${String(event.chat.id)} AND message_id = ${event.message_id}
+            AND author <> ${giverId}
+          ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
+      }
+      await next();
+    });
+
     bot.command('rating', async (c) => {
       if (!(await targeted(c))) return;
       const original = c.msg.reply_to_message;
@@ -47,9 +83,7 @@ export class SocialRatingRuntime extends BotModuleHandler {
         orderBy: [{ _count: { recipient: 'desc' } }, { recipient: 'asc' }],
         take: 10,
       });
-      const lines = rows.map(
-        (r, i) => `${i + 1}. ${r._max.recipientName} — ${r._count.recipient}`,
-      );
+      const lines = rows.map((r, i) => `${i + 1}. ${r._max.recipientName} — ${r._count.recipient}`);
       await c.reply(
         [
           'Социальный рейтинг за 30 дней',
@@ -75,10 +109,7 @@ export class SocialRatingRuntime extends BotModuleHandler {
           INSERT INTO social_rating_awards (bot_id, chat_id, message_id, giver, recipient, recipient_name, awarded_at)
           VALUES (${botId}, ${String(c.chat.id)}, ${original.message_id}, ${String(c.from.id)}, ${String(user.id)}, ${user.first_name}, ${new Date()})
           ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
-        if (added)
-          await c.reply(
-            `✨ ${user.first_name} получает +1 к социальному рейтингу!`,
-          );
+        if (added) await c.reply(`✨ ${user.first_name} получает +1 к социальному рейтингу!`);
       }
       await next();
     });

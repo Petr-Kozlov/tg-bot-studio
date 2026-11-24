@@ -490,6 +490,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
           commands.push({ command: 'rules', description: 'Показать правила чата' });
         if (enabled.has('group-tools')) {
           commands.push({ command: 'report', description: 'Пожаловаться в ответ на сообщение' });
+          commands.push({ command: 'random', description: 'Бросить кубик · /random slot — автомат' });
         }
         if (enabled.has('social-rating')) commands.push(
           { command: 'rating', description: 'Посмотреть социальный рейтинг' },
@@ -515,6 +516,7 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
       if (enabled.has('group-tools')) {
         commands.push(
           { command: 'report', description: 'Report a message to admins' },
+          { command: 'random', description: 'Roll dice or use /random slot' },
           { command: 'adminlist', description: 'List group admins' },
           { command: 'rules', description: 'Show the rules' },
           { command: 'id', description: 'Show ids' },

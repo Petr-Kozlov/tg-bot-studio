@@ -12,10 +12,9 @@ test('awards one point per giver and original group message; ranks the last 30 d
   try {
     await db.$executeRawUnsafe('CREATE TABLE bots (id TEXT PRIMARY KEY)');
     await db.$executeRawUnsafe("INSERT INTO bots VALUES ('b')");
-    const migration = readFileSync(
-      'prisma/migrations/20261124000000_social_rating/migration.sql',
-      'utf8',
-    );
+    const migration =
+      readFileSync('prisma/migrations/20261124000000_social_rating/migration.sql', 'utf8') +
+      readFileSync('prisma/migrations/20261124010000_rating_message_authors/migration.sql', 'utf8');
     for (const sql of migration
       .split(';')
       .map((s) => s.trim())
@@ -65,6 +64,43 @@ test('awards one point per giver and original group message; ranks the last 30 d
     expect(out.at(-1)).toContain('Маша — 2');
     await handlers.get('toprating')!({ ...c, chat: { ...c.chat, id: -2 } });
     expect(out.at(-1)).toContain('Пока нет благодарностей');
+    const author = c.msg.reply_to_message.from;
+    const chat = c.chat;
+    const run = (name: string, update: unknown) => handlers.get(name)!(update, async () => {});
+    const observe = (message_id: number) =>
+      run('message', { chat, msg: { message_id, from: author } });
+    const react = (message_id: number, id: number, before: string[], after: string[]) => {
+      const types = (list: string[]) => list.map((emoji) => ({ type: 'emoji', emoji }));
+      return run('message_reaction', {
+        chat,
+        messageReaction: {
+          chat,
+          message_id,
+          user: { id },
+          old_reaction: types(before),
+          new_reaction: types(after),
+        },
+      });
+    };
+    await observe(10);
+    await observe(55);
+    await observe(55);
+    await react(10, 11, [], ['🙏']); // Already thanked by text.
+    await react(55, 22, [], ['🙏']); // Author's own reaction.
+    await react(99, 33, [], ['🙏']); // Unknown author.
+    await react(55, 33, [], ['👍']);
+    expect(await db.socialRatingAward.count()).toBe(3);
+    await react(55, 33, [], ['🙏']);
+    await react(55, 33, ['🙏'], []);
+    await react(55, 33, [], ['🙏']);
+    await send({
+      ...c,
+      from: { ...c.from, id: 33 },
+      msg: { ...c.msg, reply_to_message: { ...c.msg.reply_to_message, message_id: 55 } },
+    });
+    expect(await db.socialRatingAward.count()).toBe(4);
+    await handlers.get('rating')!(c);
+    expect(out.at(-1)).toBe('Социальный рейтинг · Маша: 4');
   } finally {
     await db.$disconnect();
   }

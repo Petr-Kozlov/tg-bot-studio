@@ -40,6 +40,7 @@ const MESSAGE_METHODS = new Set([
   'sendDocument',
   'sendVoice',
   'sendPoll',
+  'sendDice',
 ]);
 
 /** Methods that perform non-text moderation/chat actions. */
@@ -449,6 +450,7 @@ export class SimulatorService {
     }
 
     let replyText = String(payload.caption ?? payload.text ?? '');
+    if (replyCall.method === 'sendDice') replyText = String(payload.emoji ?? '🎲');
     if (replyCall.method === 'sendPoll') {
       const opts = Array.isArray(payload.options)
         ? payload.options

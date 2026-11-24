@@ -269,7 +269,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     key: 'social-rating',
     name: 'Социальный рейтинг',
     category: 'Community & Moderation',
-    description: 'Баллы за благодарности в ответ на сообщения. /rating — баланс, /toprating — топ за 30 дней.',
+    description: 'Баллы за ответ с благодарностью или реакцию 🙏. /rating — баланс, /toprating — топ за 30 дней.',
     chatScoped: true,
     defaultConfig: {},
   },

@@ -130,6 +130,15 @@ export class GroupToolsRuntime extends BotModuleHandler {
     bot.command('anonadmin', (c) => this.handleToggleSetting(c, botId, 'anonAdmin'));
 
     // --- Lookups & echo ---------------------------------------------------
+    bot.command('random', async (c) => {
+      if (!(await this.guard(c, botId, 'random'))) return;
+      const mode = c.match.trim().toLowerCase();
+      if (mode && mode !== 'slot') {
+        await c.reply('🎲 /random · 🎰 /random slot');
+        return;
+      }
+      await c.replyWithDice(mode === 'slot' ? '🎰' : '🎲');
+    });
     bot.command('id', (c) => this.handleId(c, botId));
     bot.command('info', (c) => this.handleInfo(c, botId));
     bot.command('echo', (c) => this.handleEcho(c, botId));
