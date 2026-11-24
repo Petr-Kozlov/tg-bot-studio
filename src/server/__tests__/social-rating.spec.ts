@@ -143,7 +143,12 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await moderate('minus', 'причина', 'member');
     await moderate('minus', '', 'administrator');
     expect(await db.socialRatingPenalty.count()).toBe(0);
+    Object.assign(config, {
+      minusText: '🔻 {name}: {reason}',
+      undoMinusText: '✅ {name} — отмена ({reason})',
+    });
     await moderate('minus', 'причина', 'administrator');
+    expect(out.at(-1)).toBe('🔻 Маша: причина');
     await moderate('minus', 'ещё', 'creator');
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Маша ★ 4');
@@ -152,6 +157,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await moderate('undo_minus', '', 'member');
     expect(await db.socialRatingPenalty.count({ where: { undoneBy: null } })).toBe(1);
     await moderate('undo_minus', '', 'creator');
+    expect(out.at(-1)).toBe('✅ Маша — отмена (причина)');
     await moderate('undo_minus', '', 'administrator');
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Маша ★ 5');

@@ -442,9 +442,9 @@ function ChatConfigEditor({
 }): React.ReactElement {
   const { t } = useTranslation();
   const { showSuccess, showError } = useSnackbar();
-  // An entry with zero stored fields is treated as "not yet configured" so
-  // the form seeds from the effective defaults instead of opening empty.
-  const isNew = !existing || Object.keys(existing).length === 0;
+  // Older entries may predate fields that now have inherited defaults.
+  const isNew = !existing || Object.keys(existing).length === 0 ||
+    (module.configFields ?? []).some(field => !(field.key in existing));
   const [baseline, setBaseline] = useState<Record<string, unknown>>(isNew ? {} : { ...existing });
   const [draft, setDraft] = useState<Record<string, unknown> | null>(
     isNew ? null : { ...existing },

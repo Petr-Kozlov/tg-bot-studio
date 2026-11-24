@@ -94,15 +94,20 @@ export class SocialRatingRuntime extends BotModuleHandler {
       const chatId = String(c.chat.id);
       const moderator = String(c.from.id);
       if (undo) {
-        const result = await this.db.socialRatingPenalty.updateMany({
+        const [penalty] = await this.db.socialRatingPenalty.updateManyAndReturn({
+          select: { recipientName: true, reason: true },
           where: { botId, chatId, messageId: original.message_id, undoneBy: null },
           data: { undoneBy: moderator },
         });
-        await c.reply(
-          result.count
-            ? 'Штраф отменён. Балл восстановлен.'
-            : 'Активного штрафа за это сообщение нет.',
-        );
+        if (!penalty) {
+          await c.reply('Активного штрафа за это сообщение нет.');
+          return;
+        }
+        const body = format(await options(c.chat.id), 'undoMinusText', {
+          name: penalty.recipientName,
+          reason: penalty.reason,
+        });
+        if (body) await c.reply(body);
         return;
       }
       const reason = c.match.trim();
@@ -116,11 +121,15 @@ export class SocialRatingRuntime extends BotModuleHandler {
         ON CONFLICT (bot_id, chat_id, message_id) DO UPDATE SET moderator=excluded.moderator,
           reason=excluded.reason, issued_at=excluded.issued_at, undone_by=NULL
         WHERE social_rating_penalties.undone_by IS NOT NULL`;
-      await c.reply(
-        added
-          ? `−1 к рейтингу: ${original.from.first_name}. Причина: ${reason}`.slice(0, 4096)
-          : 'За это сообщение уже есть штраф.',
-      );
+      if (!added) {
+        await c.reply('За это сообщение уже есть штраф.');
+        return;
+      }
+      const body = format(await options(c.chat.id), 'minusText', {
+        name: original.from.first_name,
+        reason,
+      });
+      if (body) await c.reply(body);
     });
 
     bot.command('rating', async (c) => {

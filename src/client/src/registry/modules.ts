@@ -1307,6 +1307,8 @@ export const MODULES: ModuleEntry[] = [
     pageType: 'config',
     configFields: [
       {"key":"reactionEmoji","label":"Реакция благодарности","type":"select","options":["🙏","👍","❤️","🔥","🤝","🏆"]},
+      { key: 'minusText', label: 'Сообщение за /minus', type: 'textarea', help: '{name} — имя участника, {reason} — причина штрафа.' },
+      { key: 'undoMinusText', label: 'Сообщение за /undo_minus', type: 'textarea', help: '{name} — имя участника, {reason} — первоначальная причина штрафа.' },
       { key: 'notifyReactionAward', label: 'Сообщать в чате о балле за реакцию', type: 'switch' },
       {"key":"awardText","label":"Сообщение о начислении · {name}","type":"textarea"},
       {"key":"balanceText","label":"Ответ /rating · {name}, {score}","type":"textarea"},
