@@ -128,10 +128,12 @@ export default function BotSimulatorDrawer(): React.ReactElement {
   /**
    * Simulates a synthetic group event (join / leave / chat_member) through
    * the real module chain against the sandbox supergroup.
-   * @param {'join'|'leave'|'chat_member'} event - Sandbox event type.
+   * @param {'join'|'leave'|'chat_member'|'join_request'} event - Sandbox event type.
    * @returns {Promise<void>} Resolves after the sandbox reply lands.
    */
-  const sendEvent = async (event: 'join' | 'leave' | 'chat_member'): Promise<void> => {
+  const sendEvent = async (
+    event: 'join' | 'leave' | 'chat_member' | 'join_request',
+  ): Promise<void> => {
     if (!activeBot || loading) return;
     setLoading(true);
     try {
@@ -324,6 +326,14 @@ export default function BotSimulatorDrawer(): React.ReactElement {
               icon={<PersonAddAlt1Icon sx={{ fontSize: 14 }} />}
               label={t('simulator.simulateJoin')}
               onClick={() => void sendEvent('join')}
+            />
+          )}
+          {surface === 'supergroup' && (
+            <Chip
+              size="small"
+              icon={<PersonAddAlt1Icon sx={{ fontSize: 14 }} />}
+              label={t('simulator.simulateJoinRequest')}
+              onClick={() => void sendEvent('join_request')}
             />
           )}
         </Stack>

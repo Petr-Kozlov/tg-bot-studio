@@ -7,7 +7,7 @@ import { ChatSettingsService } from '../../bot-engine/chat-settings.service';
 import { RestrictionsService } from '../../bot-engine/restrictions.service';
 import { AdminLogService } from '../../bot-engine/admin-log.service';
 import { BotI18nService } from '../../bot-engine/bot-i18n.service';
-import { isChatTargeted } from '../../common/utils/chat-targets.util';
+import { isChatTargeted, SIMULATOR_GROUP_ID } from '../../common/utils/chat-targets.util';
 
 /**
  * Pending captcha state kept in memory per (bot, chat, user) and mirrored
@@ -105,7 +105,8 @@ export class CaptchaRuntime extends BotModuleHandler {
         const chatType = chat.type as string;
         if (chatType !== 'supergroup' && chatType !== 'group') return;
         const config = await this.chatSettings.getEffectiveConfig(botId, chat.id, this.moduleKey);
-        if (config.joinRequestIntegration !== true) return;
+        const isSandbox = String(chat.id) === String(SIMULATOR_GROUP_ID);
+        if (config.joinRequestIntegration !== true && !isSandbox) return;
         await this.challenge(ctx, chat.id, update.chatJoinRequest.from, true);
       } catch (err) {
         this.logger.warn(
@@ -271,11 +272,19 @@ export class CaptchaRuntime extends BotModuleHandler {
         },
       })
       .catch(() => null);
-    if (state?.captchaVerified === 1) return;
+    if (state?.captchaVerified === 1) {
+      // Already verified once: let a returning member's join request through.
+      if (joinRequest) {
+        await bot.api.approveChatJoinRequest(chatId, member.id).catch(() => undefined);
+      }
+      return;
+    }
 
     const nonce = crypto.randomUUID().slice(0, 8);
     let answer = 0;
     let sent: { message_id: number } | null;
+    // True when the challenge lives in the member's private chat.
+    let inPrivateChat = false;
 
     // reference-style challenge: mute until verified.
     if (!joinRequest) {
@@ -293,6 +302,7 @@ export class CaptchaRuntime extends BotModuleHandler {
           `${this.i18n.t(lang, 'captcha.welcomeCaptcha', { user: member.first_name })}\n${a} + ${b} = ?`,
         )
         .catch(() => null);
+      inPrivateChat = sent !== null;
       if (!sent) {
         // User never started the bot: fall back to a group button challenge.
         const keyboard = new InlineKeyboard().text('Verify', `captcha:${member.id}:${nonce}`);
@@ -337,7 +347,8 @@ export class CaptchaRuntime extends BotModuleHandler {
     const pending: PendingCaptcha = {
       nonce,
       answer,
-      captchaMessageId: sent.message_id,
+      // -1 marks a PM challenge: the PM message id is not a group message id.
+      captchaMessageId: inPrivateChat ? -1 : sent.message_id,
       chatId,
       userId: member.id,
       joinRequest,

@@ -443,7 +443,8 @@
     "error": "⚠️ Ошибка: {{message}}",
     "surfacePrivate": "Личный чат",
     "surfaceGroup": "Группа (песочница)",
-    "simulateJoin": "Смоделировать вход"
+    "simulateJoin": "Смоделировать вход",
+    "simulateJoinRequest": "Смоделировать заявку"
   },
   "broadcast": {
     "targetAudience": "Целевая аудитория",

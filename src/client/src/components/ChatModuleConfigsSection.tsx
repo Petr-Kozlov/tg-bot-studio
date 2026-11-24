@@ -284,7 +284,11 @@ export function ChatModuleConfigsSection({
                   value=""
                   onChange={(event) => {
                     const chatId = event.target.value;
-                    if (chatId) setSelectedChatId(chatId);
+                    if (!chatId) return;
+                    // Register a draft entry first, otherwise the selection
+                    // guard above resets a chat that has no saved override yet.
+                    setEntries((prev) => (chatId in prev ? prev : { ...prev, [chatId]: {} }));
+                    setSelectedChatId(chatId);
                   }}
                   slotProps={{
                     input: {

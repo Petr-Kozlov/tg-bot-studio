@@ -443,7 +443,8 @@
     "error": "⚠️ Error: {{message}}",
     "surfacePrivate": "Private chat",
     "surfaceGroup": "Group (sandbox)",
-    "simulateJoin": "Simulate join"
+    "simulateJoin": "Simulate join",
+    "simulateJoinRequest": "Simulate join request"
   },
   "broadcast": {
     "targetAudience": "Target audience",

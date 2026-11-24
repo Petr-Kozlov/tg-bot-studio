@@ -443,7 +443,8 @@
     "error": "⚠️ Fehler: {{message}}",
     "surfacePrivate": "Privater Chat",
     "surfaceGroup": "Gruppe (Sandbox)",
-    "simulateJoin": "Beitritt simulieren"
+    "simulateJoin": "Beitritt simulieren",
+    "simulateJoinRequest": "Beitrittsanfrage simulieren"
   },
   "broadcast": {
     "targetAudience": "Zielgruppe",

@@ -418,7 +418,7 @@ export class BotsService {
     text: string,
     options: {
       chatType?: 'private' | 'supergroup' | 'group';
-      event?: 'message' | 'join' | 'leave' | 'chat_member';
+      event?: 'message' | 'join' | 'leave' | 'chat_member' | 'join_request';
     } = {},
   ): Promise<{
     text: string;

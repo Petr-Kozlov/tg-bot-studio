@@ -11,7 +11,7 @@ import { SIMULATOR_TELEGRAM_ID, SIMULATOR_GROUP_ID } from '../common/utils/chat-
 export { SIMULATOR_TELEGRAM_ID, SIMULATOR_GROUP_ID };
 
 /** What the sandbox should synthesize for this run. */
-export type SimulationEvent = 'message' | 'join' | 'leave' | 'chat_member';
+export type SimulationEvent = 'message' | 'join' | 'leave' | 'chat_member' | 'join_request';
 
 /** Outgoing Telegram API call captured from the simulated bot. */
 interface CapturedCall {
@@ -243,6 +243,16 @@ export class SimulatorService {
             message: { message_id: 2, date: now, chat: baseChat },
             chat_instance: 'sim',
             data: input.callbackData,
+          },
+        } as never);
+      } else if (event === 'join_request') {
+        await simBot.handleUpdate({
+          update_id: Date.now(),
+          chat_join_request: {
+            chat: groupChat,
+            from: baseFrom,
+            user_chat_id: SIMULATOR_TELEGRAM_ID,
+            date: now,
           },
         } as never);
       } else if (event === 'chat_member') {

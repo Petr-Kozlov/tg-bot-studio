@@ -1489,7 +1489,13 @@ export const MODULES: ModuleEntry[] = [
     pageType: 'config',
     chatScoped: true,
     configFields: [
-      { key: 'language', label: 'Default language', type: 'select', options: ['en', 'tr'] },
+      {
+        key: 'language',
+        label: 'Default language',
+        type: 'select',
+        // Mirrors BOT_LANGUAGES in src/server/bot-engine/bot-i18n.service.ts.
+        options: ['en', 'ru', 'uk', 'tr', 'de', 'es', 'fr', 'it', 'pt', 'az', 'ar', 'fa', 'id', 'uz'],
+      },
     ],
     docs: {
       overview: [

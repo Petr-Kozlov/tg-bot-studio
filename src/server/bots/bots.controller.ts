@@ -158,7 +158,7 @@ export class BotsController {
     body: {
       message: string;
       chatType?: 'private' | 'supergroup' | 'group';
-      event?: 'message' | 'join' | 'leave' | 'chat_member';
+      event?: 'message' | 'join' | 'leave' | 'chat_member' | 'join_request';
     },
   ) {
     return this.botsService.simulateMessage(id, body.message, {

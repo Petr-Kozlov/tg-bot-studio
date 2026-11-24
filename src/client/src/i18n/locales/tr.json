@@ -443,7 +443,8 @@
     "error": "⚠️ Hata: {{message}}",
     "surfacePrivate": "Özel sohbet",
     "surfaceGroup": "Grup (kum kutusu)",
-    "simulateJoin": "Katılım simüle et"
+    "simulateJoin": "Katılım simüle et",
+    "simulateJoinRequest": "Katılma isteğini simüle et"
   },
   "broadcast": {
     "targetAudience": "Hedef kitle",
