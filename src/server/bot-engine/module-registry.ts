@@ -271,7 +271,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     category: 'Community & Moderation',
     description: 'Баллы за ответ с благодарностью или реакцию 🙏. /rating — баланс, /toprating — топ за 30 дней.',
     chatScoped: true,
-    defaultConfig: {"reactionEmoji":"🙏","awardText":"✨ {name} получает +1 к социальному рейтингу!","balanceText":"Социальный рейтинг · {name}: {score}","topTitle":"Социальный рейтинг за 30 дней","topRow":"{medal} {name} — {score}","rankMedals":"🥇 🥈 🥉","emptyText":"Пока нет благодарностей."},
+    defaultConfig: {"notifyReactionAward":false,"reactionEmoji":"🙏","awardText":"✨ {name} получает +1 к социальному рейтингу!","balanceText":"Социальный рейтинг · {name}: {score}","topTitle":"Социальный рейтинг за 30 дней","topRow":"{medal} {name} — {score}","rankMedals":"🥇 🥈 🥉","emptyText":"Пока нет благодарностей."},
   },
   {
     key: 'rules',

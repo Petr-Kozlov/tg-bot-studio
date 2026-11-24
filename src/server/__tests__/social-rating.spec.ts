@@ -71,10 +71,12 @@ test('awards one point per giver and original group message; ranks the last 30 d
     const run = (name: string, update: unknown) => handlers.get(name)!(update, async () => {});
     const observe = (message_id: number) =>
       run('message', { chat, msg: { message_id, from: author } });
+    const notices: Array<[string, unknown]> = [];
     const react = (message_id: number, id: number, before: string[], after: string[]) => {
       const types = (list: string[]) => list.map((emoji) => ({ type: 'emoji', emoji }));
       return run('message_reaction', {
         chat,
+        reply: async (text: string, options: unknown) => notices.push([text, options]),
         messageReaction: {
           chat,
           message_id,
@@ -87,6 +89,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await observe(10);
     await observe(55);
     await observe(55);
+    config.notifyReactionAward = true;
     await react(10, 11, [], ['🙏']); // Already thanked by text.
     await react(55, 22, [], ['🙏']); // Author's own reaction.
     await react(99, 33, [], ['🙏']); // Unknown author.
@@ -100,6 +103,8 @@ test('awards one point per giver and original group message; ranks the last 30 d
       from: { ...c.from, id: 33 },
       msg: { ...c.msg, reply_to_message: { ...c.msg.reply_to_message, message_id: 55 } },
     });
+    expect(notices).toEqual([[out[0], { reply_parameters: { message_id: 55 } }]]);
+    config.notifyReactionAward = false;
     expect(await db.socialRatingAward.count()).toBe(4);
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Социальный рейтинг · Маша: 4');
@@ -114,6 +119,7 @@ test('awards one point per giver and original group message; ranks the last 30 d
     });
     await react(55, 44, [], ['🙏']);
     await react(55, 44, [], ['👍']);
+    expect(notices).toHaveLength(1);
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Маша ★ 5');
     await handlers.get('toprating')!(c);

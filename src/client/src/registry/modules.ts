@@ -1307,7 +1307,8 @@ export const MODULES: ModuleEntry[] = [
     pageType: 'config',
     configFields: [
       {"key":"reactionEmoji","label":"Реакция благодарности","type":"select","options":["🙏","👍","❤️","🔥","🤝","🏆"]},
-      {"key":"awardText","label":"Ответ на «спасибо» · {name}","type":"textarea"},
+      { key: 'notifyReactionAward', label: 'Сообщать в чате о балле за реакцию', type: 'switch' },
+      {"key":"awardText","label":"Сообщение о начислении · {name}","type":"textarea"},
       {"key":"balanceText","label":"Ответ /rating · {name}, {score}","type":"textarea"},
       {"key":"topTitle","label":"Заголовок /toprating","type":"text"},
       {"key":"topRow","label":"Строка топа · {medal}, {rank}, {name}, {score}","type":"text"},

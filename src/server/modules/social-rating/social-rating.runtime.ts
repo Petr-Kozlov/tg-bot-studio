@@ -58,13 +58,18 @@ export class SocialRatingRuntime extends BotModuleHandler {
         (await targeted(c))
       ) {
         const giverId = String(giver.id);
-        await this.db.$executeRaw`
+        const awards = await this.db.$queryRaw<Array<{ recipient_name: string }>>`
           INSERT INTO social_rating_awards (bot_id, chat_id, message_id, giver, recipient, recipient_name, awarded_at)
           SELECT bot_id, chat_id, message_id, ${giverId}, author, author_name, ${new Date()}
           FROM social_rating_message_authors
           WHERE bot_id = ${botId} AND chat_id = ${String(event.chat.id)} AND message_id = ${event.message_id}
             AND author <> ${giverId}
-          ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
+          ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING
+          RETURNING recipient_name`;
+        if (cfg.notifyReactionAward === true && awards.length) {
+          const body = format(cfg, 'awardText', { name: awards[0].recipient_name });
+          if (body) await c.reply(body, { reply_parameters: { message_id: event.message_id } });
+        }
       }
       await next();
     });
