@@ -16,6 +16,7 @@ model Bot {
   createdAt String? @map("created_at")
   updatedAt String? @map("updated_at")
 
+  ratingAwards      SocialRatingAward[]
   modules          BotModule[]
   miniApps         MiniApp[]
   miniAppOrders    MiniAppOrder[]
@@ -51,6 +52,22 @@ model Bot {
   healthEvents     HealthEvent[]
 
   @@map("bots")
+}
+
+model SocialRatingAward {
+  botId String @map("bot_id")
+  chatId String @map("chat_id")
+  messageId Int @map("message_id")
+  giver String
+  recipient String
+  recipientName String @map("recipient_name")
+  awardedAt DateTime @map("awarded_at")
+  bot Bot @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@id([botId, chatId, messageId, giver])
+  @@index([botId, chatId, recipient])
+  @@index([botId, chatId, awardedAt])
+  @@map("social_rating_awards")
 }
 
 /// Reference-parity per-chat module configuration override. Effective config for a

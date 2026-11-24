@@ -491,6 +491,10 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
         if (enabled.has('group-tools')) {
           commands.push({ command: 'report', description: 'Пожаловаться в ответ на сообщение' });
         }
+        if (enabled.has('social-rating')) commands.push(
+          { command: 'rating', description: 'Посмотреть социальный рейтинг' },
+          { command: 'toprating', description: 'Топ участников за 30 дней' },
+        );
         const scope = { type: 'chat' as const, chat_id: Number(allowedGroup) };
         if (commands.length) await bot.api.setMyCommands(commands, { scope });
         else await bot.api.deleteMyCommands({ scope });

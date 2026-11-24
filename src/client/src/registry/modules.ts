@@ -1299,6 +1299,20 @@ export const MODULES: ModuleEntry[] = [
     },
   },
   {
+    key: 'social-rating',
+    name: 'Социальный рейтинг',
+    category: 'Community & Moderation',
+    description: 'Баллы за благодарности в ответ на сообщения. /rating — баланс, /toprating — топ за 30 дней.',
+    chatScoped: true,
+    pageType: 'config',
+    configFields: [],
+    docs: {
+      overview: ['Участник получает один балл, когда ему отвечают «спасибо», «спс» или «благодарю».'],
+      setup: ['Включите модуль для группы.'],
+      troubleshooting: ['Повторная благодарность за то же сообщение и ответы самому себе пропускаются.'],
+    },
+  },
+  {
     key: 'rules',
     name: 'Group Rules',
     category: 'Community & Moderation',

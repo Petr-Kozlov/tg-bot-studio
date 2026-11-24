@@ -266,6 +266,14 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     chatScoped: true,
   },
   {
+    key: 'social-rating',
+    name: 'Социальный рейтинг',
+    category: 'Community & Moderation',
+    description: 'Баллы за благодарности в ответ на сообщения. /rating — баланс, /toprating — топ за 30 дней.',
+    chatScoped: true,
+    defaultConfig: {},
+  },
+  {
     key: 'rules',
     name: 'Group Rules',
     category: 'Community & Moderation',
