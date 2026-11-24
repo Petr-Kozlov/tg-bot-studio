@@ -7,6 +7,7 @@ import { BotModel } from '../../bots/bot.model';
 import { AutoresponderModel } from '../autoresponder/autoresponder.model';
 import { SupportModel } from '../support/support.model';
 import { SystemSettingsService } from '../../database/system-settings.service';
+import { registerGroupChat } from './group-chat';
 import { escapeHtml } from '../../common/utils/telegram-text.util';
 
 /**
@@ -40,6 +41,11 @@ export class AiAssistantRuntime extends BotModuleHandler {
   register(ctx: ModuleRuntimeContext): void {
     const { bot } = ctx;
     const config = ctx.config as unknown as AiConfig;
+
+    if(config.groupMentions){
+      registerGroupChat(bot,this.settings.getBotSetting(ctx.botId,'allowed_group_id'),config,this.service);
+      return;
+    }
 
     // ----- Text Messages Handler ---------------------------------------------
     bot.on('message:text', async (update, next) => {

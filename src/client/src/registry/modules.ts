@@ -871,7 +871,7 @@ export const MODULES: ModuleEntry[] = [
         key: 'provider',
         label: 'Provider',
         type: 'select',
-        options: ['openai', 'openrouter', 'gemini', 'custom'],
+        options: ['openai', 'openrouter', 'gemini', 'groq', 'custom'],
         help: 'openrouter/custom call any model through the OpenAI-compatible base URL',
       },
       {
@@ -881,6 +881,7 @@ export const MODULES: ModuleEntry[] = [
         help: 'Ignored for openai/openrouter. Custom example: http://localhost:11434/v1 (Ollama), https://api.deepseek.com/v1',
       },
       { key: 'apiKey', label: 'API key', type: 'password' },
+      { key: 'groupMentions', type:'switch', label:'Только в привязанной группе: упоминания и ответы ассистенту' },
       {
         key: 'model',
         label: 'Model',

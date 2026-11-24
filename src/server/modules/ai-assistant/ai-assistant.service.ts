@@ -19,7 +19,8 @@ export interface ChatMessage {
  * Groq, Ollama, vLLM, ...) works with the same code path.
  */
 export interface AiConfig {
-  provider: 'openai' | 'openrouter' | 'gemini' | 'custom';
+  provider: 'openai' | 'openrouter' | 'gemini' | 'groq' | 'custom';
+  groupMentions?:boolean;
   apiKey: string;
   /** OpenAI-compatible API root, e.g. https://openrouter.ai/api/v1 */
   baseUrl?: string;
@@ -205,6 +206,7 @@ export class AiAssistantService {
    * Resolves the OpenAI-compatible API root for the provider.
    */
   private effectiveOpenAiBaseUrl(config: Pick<AiConfig, 'provider' | 'baseUrl'>): string {
+    if (config.provider === 'groq') return 'https://api.groq.com/openai/v1';
     if (config.provider === 'openrouter') return 'https://openrouter.ai/api/v1';
     if (config.provider === 'openai') return 'https://api.openai.com/v1';
     return config.baseUrl?.trim().replace(/\/+$/, '') || 'https://api.openai.com/v1';
@@ -638,7 +640,9 @@ export class AiAssistantService {
       headers,
       body: JSON.stringify({
         model: config.model || this.defaultChatModel(config),
-        max_tokens: config.maxTokens || 600,
+        ...(config.provider === 'groq'
+          ? {max_completion_tokens:config.maxTokens || 600,...(config.model.startsWith('openai/gpt-oss-')?{reasoning_effort:'low'}:{})}
+          : {max_tokens:config.maxTokens || 600}),
         messages: [{ role: 'system', content: config.systemPrompt }, ...history],
       }),
       signal: AbortSignal.timeout(20_000),
