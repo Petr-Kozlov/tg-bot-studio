@@ -3,6 +3,7 @@ import { test, expect } from 'bun:test';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { readFileSync } from 'node:fs';
+import { findModule } from '../bot-engine/module-registry';
 import { SocialRatingRuntime } from '../modules/social-rating/social-rating.runtime';
 
 test('awards one point per giver and original group message; ranks the last 30 days', async () => {
@@ -22,9 +23,10 @@ test('awards one point per giver and original group message; ranks the last 30 d
       await db.$executeRawUnsafe(sql);
     const handlers = new Map<string, Function>();
     const register = (name: string, fn: Function) => handlers.set(name, fn);
+    const config = { ...findModule('social-rating')!.defaultConfig };
     const runtime = new SocialRatingRuntime(
       db as never,
-      { isTargeted: async () => true } as never,
+      { isTargeted: async () => true, getEffectiveConfig: async () => config } as never,
       { register() {} } as never,
     );
     runtime.register({ botId: 'b', config: {}, bot: { command: register, on: register } as never });
@@ -101,6 +103,21 @@ test('awards one point per giver and original group message; ranks the last 30 d
     expect(await db.socialRatingAward.count()).toBe(4);
     await handlers.get('rating')!(c);
     expect(out.at(-1)).toBe('Социальный рейтинг · Маша: 4');
+    await handlers.get('toprating')!(c);
+    expect(out.at(-1)).toContain('🥇 Маша — 3');
+    Object.assign(config, {
+      rankMedals: '🎖️',
+      topRow: '{rank} {medal} {name} +{score}',
+      topTitle: 'Наши герои',
+      reactionEmoji: '👍',
+      balanceText: '{name} ★ {score}',
+    });
+    await react(55, 44, [], ['🙏']);
+    await react(55, 44, [], ['👍']);
+    await handlers.get('rating')!(c);
+    expect(out.at(-1)).toBe('Маша ★ 5');
+    await handlers.get('toprating')!(c);
+    expect(out.at(-1)).toBe('Наши герои\n1 🎖️ Маша +4');
   } finally {
     await db.$disconnect();
   }

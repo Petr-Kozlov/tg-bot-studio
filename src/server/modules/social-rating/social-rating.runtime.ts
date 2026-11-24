@@ -5,6 +5,8 @@ import { ModuleHandlerRegistry } from '../../bot-engine/module-handler-registry'
 import { ChatSettingsService } from '../../bot-engine/chat-settings.service';
 import { PrismaService } from '../../database/prisma.service';
 
+import { renderTemplate, type TemplateContext } from '../../common/utils/template.util';
+
 const thanks = /^(?:спасибо|спс|благодарю)(?![\p{L}\p{N}_])/iu;
 
 @Injectable()
@@ -25,6 +27,11 @@ export class SocialRatingRuntime extends BotModuleHandler {
       (c.chat?.type === 'group' || c.chat?.type === 'supergroup') &&
       this.settings.isTargeted(botId, c.chat.id, this.moduleKey);
 
+    const options = (chatId: number) =>
+      this.settings.getEffectiveConfig(botId, chatId, this.moduleKey);
+    const format = (cfg: Record<string, unknown>, key: string, vars: TemplateContext = {}) =>
+      renderTemplate(String(cfg[key]), vars).trim().slice(0, 4096);
+
     bot.on('message', async (c, next) => {
       const author = c.msg.from;
       if (author && !author.is_bot && !c.msg.sender_chat && (await targeted(c))) {
@@ -39,8 +46,9 @@ export class SocialRatingRuntime extends BotModuleHandler {
     bot.on('message_reaction', async (c, next) => {
       const event = c.messageReaction;
       const giver = event.user;
+      const cfg = await options(event.chat.id);
       const isThanks = (r: (typeof event.new_reaction)[number]) =>
-        r.type === 'emoji' && r.emoji === '🙏';
+        r.type === 'emoji' && r.emoji === cfg.reactionEmoji;
       if (
         giver &&
         !giver.is_bot &&
@@ -69,7 +77,11 @@ export class SocialRatingRuntime extends BotModuleHandler {
       const count = await this.db.socialRatingAward.count({
         where: { botId, chatId: String(c.chat.id), recipient: String(user.id) },
       });
-      await c.reply(`Социальный рейтинг · ${user.first_name}: ${count}`);
+      const body = format(await options(c.chat.id), 'balanceText', {
+        name: user.first_name,
+        score: count,
+      });
+      if (body) await c.reply(body);
     });
 
     bot.command('toprating', async (c) => {
@@ -83,13 +95,23 @@ export class SocialRatingRuntime extends BotModuleHandler {
         orderBy: [{ _count: { recipient: 'desc' } }, { recipient: 'asc' }],
         take: 10,
       });
-      const lines = rows.map((r, i) => `${i + 1}. ${r._max.recipientName} — ${r._count.recipient}`);
-      await c.reply(
-        [
-          'Социальный рейтинг за 30 дней',
-          ...(lines.length ? lines : ['Пока нет благодарностей.']),
-        ].join('\n'),
+      const cfg = await options(c.chat.id);
+      const medals = String(cfg.rankMedals ?? '')
+        .trim()
+        .split(/\s+/);
+      const lines = rows.map((r, i) =>
+        format(cfg, 'topRow', {
+          rank: i + 1,
+          medal: medals[i] || `${i + 1}.`,
+          name: r._max.recipientName ?? '',
+          score: r._count.recipient,
+        }),
       );
+      const body = [format(cfg, 'topTitle'), ...(rows.length ? lines : [format(cfg, 'emptyText')])]
+        .filter(Boolean)
+        .join('\n')
+        .slice(0, 4096);
+      if (body) await c.reply(body);
     });
 
     bot.on('message:text', async (c, next) => {
@@ -109,7 +131,10 @@ export class SocialRatingRuntime extends BotModuleHandler {
           INSERT INTO social_rating_awards (bot_id, chat_id, message_id, giver, recipient, recipient_name, awarded_at)
           VALUES (${botId}, ${String(c.chat.id)}, ${original.message_id}, ${String(c.from.id)}, ${String(user.id)}, ${user.first_name}, ${new Date()})
           ON CONFLICT (bot_id, chat_id, message_id, giver) DO NOTHING`;
-        if (added) await c.reply(`✨ ${user.first_name} получает +1 к социальному рейтингу!`);
+        if (added) {
+          const body = format(await options(c.chat.id), 'awardText', { name: user.first_name });
+          if (body) await c.reply(body);
+        }
       }
       await next();
     });
