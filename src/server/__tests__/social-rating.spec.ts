@@ -15,14 +15,23 @@ test('awards one point per giver and original group message; ranks the last 30 d
     await db.$executeRawUnsafe("INSERT INTO bots VALUES ('b')");
     const migration =
       readFileSync('prisma/migrations/20261124000000_social_rating/migration.sql', 'utf8') +
-      readFileSync('prisma/migrations/20261124010000_rating_message_authors/migration.sql', 'utf8');
+      readFileSync(
+        'prisma/migrations/20261124010000_rating_message_authors/migration.sql',
+        'utf8',
+      ) +
+      readFileSync(
+        'prisma/migrations/20261124020000_social_rating_penalties/migration.sql',
+        'utf8',
+      );
     for (const sql of migration
       .split(';')
       .map((s) => s.trim())
       .filter(Boolean))
       await db.$executeRawUnsafe(sql);
     const handlers = new Map<string, Function>();
-    const register = (name: string, fn: Function) => handlers.set(name, fn);
+    const register = (name: string | string[], fn: Function) => {
+      for (const key of [name].flat()) handlers.set(key, fn);
+    };
     const config = { ...findModule('social-rating')!.defaultConfig };
     const runtime = new SocialRatingRuntime(
       db as never,
@@ -124,6 +133,28 @@ test('awards one point per giver and original group message; ranks the last 30 d
     expect(out.at(-1)).toBe('Маша ★ 5');
     await handlers.get('toprating')!(c);
     expect(out.at(-1)).toBe('Наши герои\n1 🎖️ Маша +4');
+    const moderate = (cmd: string, reason: string, status: string) =>
+      handlers.get(cmd)!({
+        ...c,
+        msg: { ...c.msg, text: '/' + cmd + ' ' + reason },
+        match: reason,
+        api: { getChatMember: async () => ({ status }) },
+      });
+    await moderate('minus', 'причина', 'member');
+    await moderate('minus', '', 'administrator');
+    expect(await db.socialRatingPenalty.count()).toBe(0);
+    await moderate('minus', 'причина', 'administrator');
+    await moderate('minus', 'ещё', 'creator');
+    await handlers.get('rating')!(c);
+    expect(out.at(-1)).toBe('Маша ★ 4');
+    await handlers.get('toprating')!(c);
+    expect(out.at(-1)).toContain('Маша +3');
+    await moderate('undo_minus', '', 'member');
+    expect(await db.socialRatingPenalty.count({ where: { undoneBy: null } })).toBe(1);
+    await moderate('undo_minus', '', 'creator');
+    await moderate('undo_minus', '', 'administrator');
+    await handlers.get('rating')!(c);
+    expect(out.at(-1)).toBe('Маша ★ 5');
   } finally {
     await db.$disconnect();
   }

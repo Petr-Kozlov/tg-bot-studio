@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -36,7 +36,6 @@ import { useThemeMode } from '../theme';
 import { useLocalizedModules } from '../registry/localize';
 import { openSimulator } from '../utils/simulatorBus';
 import {
-  BrandMark,
   IS_MAC,
   SIDEBAR_COLLAPSED_WIDTH,
   SIDEBAR_WIDTH,
@@ -182,55 +181,8 @@ export default function Sidebar({
         backgroundImage: `linear-gradient(180deg, ${alpha(theme.palette.primary.main, dark ? 0.07 : 0.04)} 0%, transparent 240px)`,
       }}
     >
-      {/* Brand */}
-      <Box
-        component={RouterLink}
-        to="/"
-        onClick={onNavigate}
-        aria-label={t('app.title')}
-        sx={{
-          height: 64,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          gap: 1.5,
-          px: collapsed ? 0 : 2.5,
-          color: 'text.primary',
-          textDecoration: 'none',
-        }}
-      >
-        <BrandMark />
-        {!collapsed && (
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              noWrap
-              sx={{
-                fontWeight: 700,
-                fontSize: '0.9375rem',
-                letterSpacing: '-0.01em',
-                lineHeight: 1.25,
-              }}
-            >
-              {t('app.title')}
-            </Typography>
-            <Typography
-              variant="caption"
-              noWrap
-              sx={{
-                color: 'text.secondary',
-                display: 'block',
-                lineHeight: 1.3,
-              }}
-            >
-              {t('app.subtitle')}
-            </Typography>
-          </Box>
-        )}
-      </Box>
-
       {/* Bot switcher */}
-      <Box sx={{ px: collapsed ? 1.5 : 2, pb: 1.5, flexShrink: 0 }}>
+      <Box sx={{ px: collapsed ? 1.5 : 2, py: 1.5, flexShrink: 0 }}>
         <BotSwitcherCard collapsed={collapsed} onNavigate={onNavigate} />
       </Box>
 
@@ -767,4 +719,4 @@ export default function Sidebar({
   );
 }
 
-export { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH, BrandMark };
+export { SIDEBAR_WIDTH, SIDEBAR_COLLAPSED_WIDTH };

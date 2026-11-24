@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { BotsService } from './bots.service';
 import { CreateBotDto, UpdateBotDto, UpdateModuleStateDto, ValidateTokenDto } from './dto/bots.dto';
 import { callGetMe } from '../common/utils/telegram.util';
@@ -47,6 +48,13 @@ export class BotsController {
   @Post()
   create(@Body() body: CreateBotDto) {
     return this.botsService.create(body);
+  }
+
+  @Get(':id/avatar')
+  async avatar(@Param('id') id: string, @Res() response: Response) {
+    const image = await this.botsService.avatar(id);
+    if (!image) { response.status(404).end(); return; }
+    response.set('Cache-Control', 'private, max-age=900').type('jpeg').send(image);
   }
 
   /**

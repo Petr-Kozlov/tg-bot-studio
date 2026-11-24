@@ -3,7 +3,6 @@ import { Avatar, Box, Tooltip } from '@mui/material';
 import { alpha, type Theme } from '@mui/material/styles';
 import { keyframes } from '@emotion/react';
 import { useTranslation } from 'react-i18next';
-import TelegramIcon from '@mui/icons-material/Telegram';
 import type { BotSummary } from '../../context/BotContext';
 import { colorFor as statusColor } from '../StatusDot';
 
@@ -147,33 +146,6 @@ export function RailTooltip({
 }
 
 /**
- * Gradient brand tile used in the sidebar header and the compact top bar.
- * @param {object} props - Component props.
- * @param {number} [props.size=36] - Tile size in pixels.
- * @returns {React.ReactElement} The brand mark.
- */
-export function BrandMark({ size = 36 }: { size?: number }): React.ReactElement {
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        width: size,
-        height: size,
-        flexShrink: 0,
-        borderRadius: `${Math.round(size * 0.28)}px`,
-        display: 'grid',
-        placeItems: 'center',
-        color: '#fff',
-        background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 55%, #8b5cf6 100%)',
-        boxShadow: `0 6px 16px -6px ${alpha('#4f46e5', 0.7)}, inset 0 1px 0 rgba(255,255,255,0.25)`,
-      }}
-    >
-      <TelegramIcon sx={{ fontSize: Math.round(size * 0.6) }} />
-    </Box>
-  );
-}
-
-/**
  * Rounded gradient avatar with bot initials and a live status badge.
  * @param {object} props - Component props.
  * @param {BotSummary} props.bot - Bot to render.
@@ -190,6 +162,8 @@ export function BotAvatar({ bot, size }: { bot: BotSummary; size: number }): Rea
   return (
     <Box sx={{ position: 'relative', flexShrink: 0, lineHeight: 0 }}>
       <Avatar
+        src={`/api/bots/${encodeURIComponent(bot.id)}/avatar`}
+        alt=""
         variant="rounded"
         sx={{
           width: size,

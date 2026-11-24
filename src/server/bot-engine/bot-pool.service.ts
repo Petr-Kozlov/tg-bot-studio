@@ -497,6 +497,12 @@ export class BotPoolService implements OnApplicationBootstrap, OnApplicationShut
           { command: 'toprating', description: 'Топ участников за 30 дней' },
         );
         const scope = { type: 'chat' as const, chat_id: Number(allowedGroup) };
+        const adminScope = { type: 'chat_administrators' as const, chat_id: Number(allowedGroup) };
+        if (enabled.has('social-rating')) await bot.api.setMyCommands([...commands,
+          { command: 'minus', description: 'Снизить рейтинг: ответ с причиной' },
+          { command: 'undo_minus', description: 'Отменить штраф за сообщение' },
+        ], { scope: adminScope });
+        else await bot.api.deleteMyCommands({ scope: adminScope });
         if (commands.length) await bot.api.setMyCommands(commands, { scope });
         else await bot.api.deleteMyCommands({ scope });
         await bot.api.deleteMyCommands({ scope: { type: 'all_group_chats' } });

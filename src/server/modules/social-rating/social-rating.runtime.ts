@@ -74,6 +74,55 @@ export class SocialRatingRuntime extends BotModuleHandler {
       await next();
     });
 
+    bot.command(['minus', 'undo_minus'], async (c) => {
+      if (!(await targeted(c))) return;
+      if (!c.from || c.from.is_bot || c.msg.sender_chat) {
+        await c.reply('Отправьте команду с личного аккаунта администратора.');
+        return;
+      }
+      const member = await c.api.getChatMember(c.chat.id, c.from.id);
+      if (member.status !== 'creator' && member.status !== 'administrator') {
+        await c.reply('Эта команда доступна только модераторам.');
+        return;
+      }
+      const undo = c.msg.text.split(/[\s@]/, 1)[0] === '/undo_minus';
+      const original = c.msg.reply_to_message;
+      if (!original?.from || original.from.is_bot || original.sender_chat) {
+        await c.reply('Отправьте команду в ответ на сообщение участника.');
+        return;
+      }
+      const chatId = String(c.chat.id);
+      const moderator = String(c.from.id);
+      if (undo) {
+        const result = await this.db.socialRatingPenalty.updateMany({
+          where: { botId, chatId, messageId: original.message_id, undoneBy: null },
+          data: { undoneBy: moderator },
+        });
+        await c.reply(
+          result.count
+            ? 'Штраф отменён. Балл восстановлен.'
+            : 'Активного штрафа за это сообщение нет.',
+        );
+        return;
+      }
+      const reason = c.match.trim();
+      if (!reason) {
+        await c.reply('Укажите причину: /minus причина');
+        return;
+      }
+      const added = await this.db.$executeRaw`
+        INSERT INTO social_rating_penalties (bot_id, chat_id, message_id, recipient, recipient_name, moderator, reason, issued_at)
+        VALUES (${botId}, ${chatId}, ${original.message_id}, ${String(original.from.id)}, ${original.from.first_name}, ${moderator}, ${reason}, ${new Date()})
+        ON CONFLICT (bot_id, chat_id, message_id) DO UPDATE SET moderator=excluded.moderator,
+          reason=excluded.reason, issued_at=excluded.issued_at, undone_by=NULL
+        WHERE social_rating_penalties.undone_by IS NOT NULL`;
+      await c.reply(
+        added
+          ? `−1 к рейтингу: ${original.from.first_name}. Причина: ${reason}`.slice(0, 4096)
+          : 'За это сообщение уже есть штраф.',
+      );
+    });
+
     bot.command('rating', async (c) => {
       if (!(await targeted(c))) return;
       const original = c.msg.reply_to_message;
@@ -84,7 +133,11 @@ export class SocialRatingRuntime extends BotModuleHandler {
       });
       const body = format(await options(c.chat.id), 'balanceText', {
         name: user.first_name,
-        score: count,
+        score:
+          count -
+          (await this.db.socialRatingPenalty.count({
+            where: { botId, chatId: String(c.chat.id), recipient: String(user.id), undoneBy: null },
+          })),
       });
       if (body) await c.reply(body);
     });
@@ -92,14 +145,15 @@ export class SocialRatingRuntime extends BotModuleHandler {
     bot.command('toprating', async (c) => {
       if (!(await targeted(c))) return;
       const cutoff = new Date(Date.now() - 30 * 86400000);
-      const rows = await this.db.socialRatingAward.groupBy({
-        by: ['recipient'],
-        where: { botId, chatId: String(c.chat.id), awardedAt: { gte: cutoff } },
-        _count: { recipient: true },
-        _max: { recipientName: true },
-        orderBy: [{ _count: { recipient: 'desc' } }, { recipient: 'asc' }],
-        take: 10,
-      });
+      const chatId = String(c.chat.id);
+      const rows = await this.db.$queryRaw<Array<{ name: string; score: bigint }>>`
+        SELECT MAX(recipient_name) AS name, SUM(points) AS score FROM (
+          SELECT recipient, recipient_name, 1 AS points FROM social_rating_awards
+          WHERE bot_id=${botId} AND chat_id=${chatId} AND awarded_at>=${cutoff}
+          UNION ALL
+          SELECT recipient, recipient_name, -1 AS points FROM social_rating_penalties
+          WHERE bot_id=${botId} AND chat_id=${chatId} AND issued_at>=${cutoff} AND undone_by IS NULL
+        ) GROUP BY recipient ORDER BY score DESC, recipient ASC LIMIT 10`;
       const cfg = await options(c.chat.id);
       const medals = String(cfg.rankMedals ?? '')
         .trim()
@@ -108,8 +162,8 @@ export class SocialRatingRuntime extends BotModuleHandler {
         format(cfg, 'topRow', {
           rank: i + 1,
           medal: medals[i] || `${i + 1}.`,
-          name: r._max.recipientName ?? '',
-          score: r._count.recipient,
+          name: r.name,
+          score: Number(r.score),
         }),
       );
       const body = [format(cfg, 'topTitle'), ...(rows.length ? lines : [format(cfg, 'emptyText')])]

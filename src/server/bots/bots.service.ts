@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Api } from 'grammy';
 import { PrismaService } from '../database/prisma.service';
 import { BotModel } from './bot.model';
 import { DiagnosticsService } from './diagnostics.service';
@@ -121,6 +122,24 @@ export class BotsService {
     }
     await this.settings.setBotSetting(botId, 'timezone', requested || 'UTC');
     return { timezone: requested || 'UTC' };
+  }
+
+  async avatar(id: string): Promise<Buffer | null> {
+    const bot = await this.botModel.findById(id);
+    if (!bot) this.throwNotFound(id);
+    try {
+      const api = new Api(bot.token, { timeoutSeconds: 8 });
+      const signal = AbortSignal.timeout(8000);
+      const photos = await api.getUserProfilePhotos(Number(bot.token.split(':')[0]), { limit: 1 });
+      const photo = photos.photos[0]?.[0];
+      if (!photo) return null;
+      const file = await api.getFile(photo.file_id);
+      if (!file.file_path) return null;
+      const res = await fetch(`https://api.telegram.org/file/bot${bot.token}/${file.file_path}`, {signal});
+      return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+    } catch {
+      return null;
+    }
   }
 
   /**

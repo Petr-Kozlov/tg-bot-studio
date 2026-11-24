@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
-  Chip,
   Drawer,
   IconButton,
   Stack,
@@ -16,7 +15,8 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useTranslation } from 'react-i18next';
 import { useBots } from '../context/BotContext';
 import BotSimulatorDrawer from './BotSimulatorDrawer';
-import Sidebar, { BrandMark, SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_WIDTH } from './Sidebar';
+import { BotAvatar } from './sidebar/shared';
+import Sidebar, { SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_WIDTH } from './Sidebar';
 import { openSimulator } from '../utils/simulatorBus';
 
 /** localStorage key for the persisted desktop rail state. */
@@ -165,7 +165,7 @@ export default function Layout(): React.ReactElement {
 
             <Box
               component={RouterLink}
-              to="/"
+              to={activeBot ? `/bots/${activeBot.id}` : '/'}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -175,7 +175,7 @@ export default function Layout(): React.ReactElement {
                 minWidth: 0,
               }}
             >
-              <BrandMark size={28} />
+              {activeBot && <BotAvatar bot={activeBot} size={28} />}
               <Typography
                 variant="subtitle2"
                 noWrap
@@ -184,39 +184,12 @@ export default function Layout(): React.ReactElement {
                   letterSpacing: '-0.01em',
                 }}
               >
-                {t('app.title')}
+                {activeBot?.name ?? t('nav.overview')}
               </Typography>
             </Box>
           </Stack>
 
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexShrink: 0 }}>
-            {activeBot && (
-              <Chip
-                size="small"
-                label={activeBot.name}
-                avatar={
-                  <Box
-                    component="span"
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: activeBot.is_active ? 'success.main' : 'text.disabled',
-                      ml: '8px !important',
-                    }}
-                  />
-                }
-                sx={{
-                  display: { xs: 'none', sm: 'inline-flex' },
-                  maxWidth: 140,
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  bgcolor: (th) => alpha(th.palette.text.primary, 0.04),
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              />
-            )}
             {activeBot && (
               <IconButton
                 size="small"
