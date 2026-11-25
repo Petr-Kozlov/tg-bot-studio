@@ -192,8 +192,14 @@ export function registerGroupChat(
       if (!answer) return;
       let file;
       try {
-        if (attachment && /^(?:GAME|FILE):/.test(answer)) throw Error('Expected edits');
-        file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer, asksForGame(text));
+        if (attachment && /^(?:GAME|FILE):/.test(answer)) {
+          if (!attachment.game) throw Error('Expected edits');
+          file = generatedFile(answer, true);
+          if (!file?.game || Buffer.byteLength(file.content) > 65536) throw Error('Invalid game revision');
+          file.name = attachment.name;
+        } else {
+          file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer, asksForGame(text));
+        }
       } catch {
         Logger.warn({ event: 'game-file-validation', bot: botId, message: msg.message_id, editing: !!attachment, bytes: Buffer.byteLength(answer) }, 'AiAssistantRuntime');
         await ctx.reply(attachment ? 'Не удалось однозначно применить правку. Исходник сохранён. Попробуй попросить одно изменение за раз.' : 'Файл получился неполным. Попробуй запросить более короткую версию.', options);

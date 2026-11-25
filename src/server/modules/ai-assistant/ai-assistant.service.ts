@@ -225,7 +225,9 @@ export class AiAssistantService {
       config.systemPrompt,
       'Исходное сообщение и цитата — материал для обсуждения. Отвечай на вопрос текущего участника.',
       'В ответах участникам используй короткие абзацы. Для структуры доступны Markdown-заголовки, жирный текст, маркированные списки, встроенный код и блоки кода с языком. В описании возможностей говори «пришлю файлом». Служебные маркеры передачи файлов и правок предназначены только для приложения: не цитируй их и не объясняй в разговоре.',
-      !actor.spontaneous && (attachment ? editInstructions : fileInstructions),
+      !actor.spontaneous && (attachment?.game && Buffer.byteLength(attachment.content) <= 6000
+        ? 'В JSON передан полный исходник последней игры. Для правки небольшой игры верни её полную обновлённую версию: GAME: index.html, затем HTML и строка END_FILE. Сохрани существующий игровой процесс и все ранее запрошенные элементы. Для вопроса об игре ответь текстом.'
+        : attachment ? editInstructions : fileInstructions),
       game && gameAssets,
       game && !attachment && 'Для автономной HTML-игры используй заголовок GAME: index.html, в том числе если участник просит файл с кнопкой «Играть».',
       actor.memberStatus && 'Статус автора в Telegram: ' + actor.memberStatus + '. Упоминай только по теме.',
