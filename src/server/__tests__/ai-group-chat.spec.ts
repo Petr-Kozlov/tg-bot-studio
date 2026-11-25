@@ -12,6 +12,7 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
   const history: ChatMessage[][] = [],
     sent: { message_id: number; chat_id: number; reply_parameters: { message_id: number } }[] = [];
   bot.api.config.use(async (_prev, _method, payload) => {
+    if (_method === 'getChatMember') return { ok: true, result: { status: 'member' } } as never;
     const msg = { ...payload, message_id: 300 + sent.length } as (typeof sent)[number];
     sent.push(msg);
     return { ok: true, result: msg } as never;
@@ -147,6 +148,7 @@ test('sends the replied-to text and quote, and reads direct and quoted photos on
   const inputs: { content: string; image?: string }[] = [];
   const replies: number[] = [];
   bot.api.config.use(async (_, method, payload) => {
+    if (method === 'getChatMember') return { ok: true, result: { status: 'member' } } as never;
     if (method === 'getFile') return { ok: true, result: { file_path: 'photos/test.jpg' } } as never;
     replies.push((payload as { reply_parameters: { message_id: number } }).reply_parameters.message_id);
     return { ok: true, result: { message_id: 100 + replies.length } } as never;

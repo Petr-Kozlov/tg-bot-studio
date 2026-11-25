@@ -1,5 +1,7 @@
 import { Logger } from '@nestjs/common';
-import type { Bot } from 'grammy';
+import { InputFile, type Bot } from 'grammy';
+import { generatedFile } from './generated-file';
+import { publishGame } from './ai-games.controller';
 import type { AiAssistantService, AiConfig, ChatMessage } from './ai-assistant.service';
 
 /** Keep only recent AI turns. Ordinary chat messages never enter the provider context. */
@@ -148,12 +150,15 @@ export function registerGroupChat(
           if (!bytes.length || bytes.length > 4_000_000) throw Error('Invalid photo size');
           image = 'data:image/jpeg;base64,' + bytes.toString('base64');
         }
+        const member = spontaneous ? null : await bot.api.getChatMember(ctx.chat.id, ctx.from.id).catch(() => null);
         answer = (
           await ai.groupAnswer(config, turns, {
             bot: botId,
             chat,
             user: ctx.from.id,
             message: msg.message_id,
+            memberStatus: member?.status,
+            memberTag: msg.sender_tag || (member && 'custom_title' in member ? member.custom_title : undefined),
             ...(spontaneous ? { spontaneous: true } : {}),
           }, image)
         ).trim();
@@ -162,7 +167,27 @@ export function registerGroupChat(
         return;
       }
       if (!answer) return;
-      const response = await ctx.reply(answer.slice(0, 4000), options);
+      let file;
+      try {
+        file = spontaneous ? null : generatedFile(answer);
+      } catch {
+        await ctx.reply('Файл получился неполным. Попробуй запросить более короткую версию.', options);
+        return;
+      }
+      let playUrl: string | undefined;
+      if (file?.game && config.gameOrigin) {
+        try {
+          playUrl = await publishGame(file.content, config.gameOrigin);
+        } catch {
+          Logger.warn('Unable to publish generated game', 'AiAssistantRuntime');
+        }
+      }
+      const response = file
+        ? await ctx.replyWithDocument(new InputFile(Buffer.from(file.content), file.name), {
+            ...options,
+            ...(playUrl ? { reply_markup: { inline_keyboard: [[{ text: '🎮 Играть', url: playUrl }]] } } : {}),
+          })
+        : await ctx.reply(answer.slice(0, 4000), options);
       const depth = Math.max(1, Math.min(4, config.historyLimit || 2));
       const chain: ChatMessage[] = [
         ...turns,
