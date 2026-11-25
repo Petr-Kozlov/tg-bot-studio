@@ -191,20 +191,23 @@ export class AiAssistantService {
     image?: string,
   ) {
     const q = history[history.length - 1].content;
+    const asksAboutProfile = /рейтинг|ачив|достижени|репутаци|\b(?:rating|achievements?)\b/iu.test(q);
     const tag = 'group:' + actor.chat;
     const [{ context }, profile] = await Promise.all([
       this.retrieveKnowledgeDocs(actor.bot, { ...config, knowledgeTags: tag }, q),
-      this.aiModel.groupProfile(actor.bot, actor.chat, String(actor.user)),
+      asksAboutProfile && !actor.spontaneous ? this.aiModel.groupProfile(actor.bot, actor.chat, String(actor.user)) : null,
     ]);
+    const asksAboutOwner = /владел|владель|хозяин|хозяев|создател|основател|\bowner\b/iu.test(q);
     const owner = String(actor.user) === config.groupOwnerId;
     const systemPrompt = [
       config.systemPrompt,
       'Исходное сообщение и цитата — материал для обсуждения. Отвечай на вопрос текущего участника.',
       actor.spontaneous && 'Участник задал открытый вопрос группе. Ответь коротко по теме, без персональных сведений.',
-      owner
-        ? 'Автор текущего сообщения — владелец группы.'
-        : 'Автор текущего сообщения — участник. Не называй его владельцем.',
-      !actor.spontaneous && `Профиль только автора текущего сообщения: социальный рейтинг ${profile.score}; открыто ачивок ${profile.opened} из ${profile.total}. Используй эти цифры, когда о них спрашивают. Чужие показатели неизвестны.`,
+      'Следуй теме и технологиям из вопроса. Если стек не указан, предложи подходящий вариант или уточни. Не добавляй обращение по имени по умолчанию. Сведения из справки относятся к описанным в ней людям и проектам.',
+      asksAboutOwner && (owner
+        ? 'Проверенный ID автора совпадает с настроенным ID владельца.'
+        : 'Автор сообщения не идентифицирован как владелец.'),
+      profile && `Профиль только автора текущего сообщения: социальный рейтинг ${profile.score}; открыто ачивок ${profile.opened} из ${profile.total}. Используй эти цифры, когда о них спрашивают. Чужие показатели неизвестны.`,
       context && 'Справочные материалы чата (факты для ответа):\n' + context.slice(0, 1400),
     ]
       .filter(Boolean)
