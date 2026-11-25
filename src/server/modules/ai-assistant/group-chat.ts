@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { InputFile, type Bot } from 'grammy';
+import { applyDocumentEdits, DocumentError, readSourceDocument, type SourceDocument } from './source-document';
 import { generatedFile } from './generated-file';
 import { publishGame } from './ai-games.controller';
 import type { AiAssistantService, AiConfig, ChatMessage } from './ai-assistant.service';
@@ -79,7 +80,7 @@ export function registerGroupChat(
       }
     });
   }
-  bot.on(['message:text', 'message:photo'], async (ctx, next) => {
+  bot.on(['message:text', 'message:photo', 'message:document'], async (ctx, next) => {
     try {
       const msg = ctx.message;
       const body = msg.text ?? msg.caption ?? '';
@@ -105,7 +106,10 @@ export function registerGroupChat(
           ? replies.get(msg.reply_to_message.message_id)
           : undefined;
       const history = parent && parent.time > cutoff ? parent.history : [];
-      const spontaneous = !mention && !history.length;
+      const source = msg.reply_to_message;
+      const document = msg.document ?? source?.document;
+      const replyToBotFile = source?.from?.id === ctx.me.id && !!source.document;
+      const spontaneous = !mention && !history.length && !replyToBotFile;
       if (spontaneous && (!config.spontaneousReplies || msg.reply_to_message || !msg.text ||
           msg.entities?.some(e => ['mention', 'text_mention', 'bot_command'].includes(e.type)) ||
           body.length < 24 || !body.trimEnd().endsWith('?') || Math.random() >= 0.05)) return;
@@ -114,7 +118,6 @@ export function registerGroupChat(
           ? body.slice(0, mention.offset) + body.slice(mention.offset + mention.length)
           : body
       ).trim();
-      const source = msg.reply_to_message;
       const photos = msg.photo ?? source?.photo;
       if (!text && !photos?.length) return;
       const options = {
@@ -132,10 +135,16 @@ export function registerGroupChat(
         (original || msg.quote ? 'Вопрос участника: ' : '') + (text.slice(0, 1600) || 'Что на картинке?'),
       ].filter(Boolean).join('\n');
       const turns: ChatMessage[] = [...history, { role: 'user', content }];
+      let attachment: SourceDocument | undefined;
       let answer: string;
       try {
         let image: string | undefined;
-        if (photos?.length) {
+        if (document) {
+          const ownGame = !msg.document && replyToBotFile && source?.reply_markup?.inline_keyboard.flat().some(button =>
+            'url' in button && button.url.startsWith(config.gameOrigin + '/api/ai-games/'));
+          attachment = await readSourceDocument(bot, document, !!ownGame);
+        }
+        if (!document && photos?.length) {
           if (!config.visionModel?.trim() && config.provider !== 'groq' || config.provider === 'gemini') {
             await ctx.reply('Для этого чата ещё не настроен разбор фотографий.', options);
             return;
@@ -160,18 +169,19 @@ export function registerGroupChat(
             memberStatus: member?.status,
             memberTag: msg.sender_tag || (member && 'custom_title' in member ? member.custom_title : undefined),
             ...(spontaneous ? { spontaneous: true } : {}),
-          }, image)
+          }, image, attachment)
         ).trim();
-      } catch {
-        if (!spontaneous) await ctx.reply('Сейчас не получается ответить. Попробуй чуть позже.', options);
+      } catch (error) {
+        if (!spontaneous) await ctx.reply(error instanceof DocumentError ? error.message : 'Сейчас не получается ответить. Попробуй чуть позже.', options);
         return;
       }
       if (!answer) return;
       let file;
       try {
-        file = spontaneous ? null : generatedFile(answer);
+        if (attachment && /^(?:GAME|FILE):/.test(answer)) throw Error('Expected edits');
+        file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer);
       } catch {
-        await ctx.reply('Файл получился неполным. Попробуй запросить более короткую версию.', options);
+        await ctx.reply(attachment ? 'Не удалось однозначно применить правку. Исходник сохранён. Попробуй попросить одно изменение за раз.' : 'Файл получился неполным. Попробуй запросить более короткую версию.', options);
         return;
       }
       let playUrl: string | undefined;

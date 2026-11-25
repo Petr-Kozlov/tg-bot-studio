@@ -882,6 +882,7 @@ export const MODULES: ModuleEntry[] = [
       },
       { key: 'apiKey', label: 'API key', type: 'password' },
       { key: 'spontaneousReplies', type: 'switch', label: 'Иногда отвечать на вопросы без упоминания (до двух раз в сутки)' },
+      { key: 'codeModel', type: 'text', label: 'Модель для файлов и игр (если пусто — разговорная)' },
       { key: 'visionModel', type: 'text', label: 'Модель для фотографий (Groq по умолчанию: qwen/qwen3.8-27b)' },
       { key:'commentChannelPosts', type:'switch',label:'Комментировать новые посты связанного канала' },
       { key:'groupOwnerId', type:'text',label:'Telegram ID владельца для групповых ответов' },
