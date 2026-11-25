@@ -79,6 +79,43 @@ export default function AiKnowledgeDocsManager({ botId }: { botId: string }): Re
   const [testSources, setTestSources] = useState<TestSource[]>([]);
   const [testLoading, setTestLoading] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  type GroupUsage = {
+    user: string;
+    chat: string;
+    model: string;
+    requests: number;
+    input: number;
+    output: number;
+    errors: number;
+    missing: number;
+  };
+  const [groupRows, setGroupRows] = useState<GroupUsage[]>([]);
+  const [period, setPeriod] = useState('today');
+  const [groupError, setGroupError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    const start = new Date();
+    if (period === 'week') start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    let active = true;
+    setGroupError('');
+    setGroupRows([]);
+    apiFetch<GroupUsage[]>(
+      '/api/bots/' +
+        botId +
+        '/ai-assistant/group-usage?since=' +
+        encodeURIComponent(start.toISOString()),
+    )
+      .then((rows) => {
+        if (active) setGroupRows(rows);
+      })
+      .catch((e) => {
+        if (active) setGroupError(localizedErrorMessage(e));
+      });
+    return () => {
+      active = false;
+    };
+  }, [botId, period, refresh]);
   const [metrics, setMetrics] = useState<AiMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -260,6 +297,73 @@ export default function AiKnowledgeDocsManager({ botId }: { botId: string }): Re
             </Button>
           </Stack>
 
+          <Typography variant="body2">
+            Для групповых ответов добавьте документу тег group:ID_чата с числовым Telegram ID группы. Содержимое таких документов доступно участникам
+            соответствующего чата.
+          </Typography>
+          <Typography variant="subtitle1">Расход ИИ в группах</Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant={period === 'today' ? 'contained' : 'text'}
+              onClick={() => setPeriod('today')}
+            >
+              Сегодня
+            </Button>
+            <Button
+              variant={period === 'week' ? 'contained' : 'text'}
+              onClick={() => setPeriod('week')}
+            >
+              7 дней
+            </Button>
+            <IconButton aria-label="Обновить расход" onClick={() => setRefresh((n) => n + 1)}>
+              <RefreshIcon />
+            </IconButton>
+          </Stack>
+          {groupError ? (
+            <Alert severity="error">{groupError}</Alert>
+          ) : groupRows.length ? (
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', textAlign: 'left', borderSpacing: 8 }}>
+                <caption style={{ textAlign: 'left' }}>
+                  Всего запросов: {groupRows.reduce((s, r) => s + r.requests, 0)} · учтено токенов:{' '}
+                  {groupRows.reduce((s, r) => s + r.input + r.output, 0)}
+                </caption>
+                <thead>
+                  <tr>
+                    {[
+                      'Telegram ID',
+                      'Чат',
+                      'Модель',
+                      'Запросы',
+                      'Входные токены',
+                      'Выходные токены',
+                      'Ошибки',
+                      'Без данных о токенах',
+                    ].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupRows.map((r) => (
+                    <tr key={[r.chat, r.user, r.model].join('/')}>
+                      <td>{r.user}</td>
+                      <td>{r.chat}</td>
+                      <td>{r.model}</td>
+                      <td>{r.requests}</td>
+                      <td>{r.input}</td>
+                      <td>{r.output}</td>
+                      <td>{r.errors}</td>
+                      <td>{r.missing}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          ) : (
+            <Typography variant="body2">За этот период обращений пока нет.</Typography>
+          )}
+          {metrics && <Typography variant="subtitle2">Личные диалоги за 7 дней</Typography>}
           {metrics && (
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
               <Chip size="small" label={t('aiDocs.metricRequests', { count: metrics.requests })} />

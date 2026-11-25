@@ -43,7 +43,7 @@ export class AiAssistantRuntime extends BotModuleHandler {
     const config = ctx.config as unknown as AiConfig;
 
     if(config.groupMentions){
-      registerGroupChat(bot,this.settings.getBotSetting(ctx.botId,'allowed_group_id'),config,this.service);
+      registerGroupChat(bot,this.settings.getBotSetting(ctx.botId,'allowed_group_id'),config,this.service,ctx.botId);
       return;
     }
 

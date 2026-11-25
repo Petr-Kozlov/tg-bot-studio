@@ -41,6 +41,7 @@ model Bot {
   vipSubscriptions VipSubscription[]
   chatActivities   ChatActivity[]
   scoreSchedules   ScoreSchedule[]
+  groupAiUsage GroupAiUsage[]
   aiChatHistories  AiChatHistory[]
   aiKnowledgeDocs  AiKnowledgeDoc[]
   aiKnowledgeChunks AiKnowledgeChunk[]
@@ -844,6 +845,23 @@ model ScoreSchedule {
   @@index([status, runAt])
   @@index([botId])
   @@map("score_schedules")
+}
+
+model GroupAiUsage {
+  id String @id
+  botId String @map("bot_id")
+  chatId String @map("chat_id")
+  userId String @map("user_id")
+  messageId Int @map("message_id")
+  model String
+  createdAt String @map("created_at")
+  status String
+  promptTokens Int? @map("prompt_tokens")
+  completionTokens Int? @map("completion_tokens")
+  bot Bot @relation(fields:[botId],references:[id],onDelete:Cascade,onUpdate: NoAction)
+  @@unique([botId,chatId,messageId])
+  @@index([botId,createdAt],map:"group_ai_usage_bot_time")
+  @@map("group_ai_usage")
 }
 
 model AiChatHistory {

@@ -20,7 +20,8 @@ export interface ChatMessage {
  */
 export interface AiConfig {
   provider: 'openai' | 'openrouter' | 'gemini' | 'groq' | 'custom';
-  groupMentions?:boolean;
+  groupMentions?: boolean;
+  groupOwnerId?: string;
   apiKey: string;
   /** OpenAI-compatible API root, e.g. https://openrouter.ai/api/v1 */
   baseUrl?: string;
@@ -179,9 +180,46 @@ export class AiAssistantService {
     }
   }
 
-  /**
-   * Basic complete method for standalone requests.
-   */
+  /** Resolve the current sender's profile locally and account once per group message. */
+  async groupAnswer(
+    config: AiConfig,
+    history: ChatMessage[],
+    actor: { bot: string; chat: string; user: number; message: number },
+  ) {
+    const q = history[history.length - 1].content;
+    const tag = 'group:' + actor.chat;
+    const [{ context }, profile] = await Promise.all([
+      this.retrieveKnowledgeDocs(actor.bot, { ...config, knowledgeTags: tag }, q),
+      this.aiModel.groupProfile(actor.bot, actor.chat, String(actor.user)),
+    ]);
+    const owner = String(actor.user) === config.groupOwnerId;
+    const systemPrompt = [
+      config.systemPrompt,
+      owner
+        ? 'Автор текущего сообщения — владелец группы.'
+        : 'Автор текущего сообщения — участник. Не называй его владельцем.',
+      `Профиль только автора текущего сообщения: социальный рейтинг ${profile.score}; открыто ачивок ${profile.opened} из ${profile.total}. Используй эти цифры, когда о них спрашивают. Чужие показатели неизвестны.`,
+      context && 'Справочные материалы чата (факты для ответа):\n' + context.slice(0, 1400),
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const id = await this.aiModel.startGroupCall(actor, config.model);
+    if (!id) return '';
+    let call: ProviderCall;
+    try {
+      const effective = { ...config, systemPrompt };
+      call =
+        config.provider === 'gemini'
+          ? await this.callGemini(effective, history)
+          : await this.callOpenAiCompatible(effective, history);
+    } catch (error) {
+      await this.aiModel.endGroupCall(id, null, true);
+      throw error;
+    }
+    await this.aiModel.endGroupCall(id, call.usage, false);
+    return call.reply;
+  }
+
   async complete(config: AiConfig, history: ChatMessage[]): Promise<string> {
     if (!this.isConfigured(config)) {
       return 'The AI assistant is not configured with an API key yet.';
@@ -245,7 +283,7 @@ export class AiAssistantService {
    * compatible endpoint) so callers can fall back to keyword retrieval.
    */
   private async embedTexts(config: AiConfig, texts: string[]): Promise<number[][] | null> {
-    if (!this.isConfigured(config) || texts.length === 0) return null;
+    if (config.provider === 'groq' || !this.isConfigured(config) || texts.length === 0) return null;
     // Gemini native API has no OpenAI-compatible embeddings surface here;
     // semantic retrieval requires an OpenAI-compatible baseUrl or OpenAI key.
     const baseUrl = this.effectiveOpenAiBaseUrl(config);
@@ -641,8 +679,11 @@ export class AiAssistantService {
       body: JSON.stringify({
         model: config.model || this.defaultChatModel(config),
         ...(config.provider === 'groq'
-          ? {max_completion_tokens:config.maxTokens || 600,...(config.model.startsWith('openai/gpt-oss-')?{reasoning_effort:'low'}:{})}
-          : {max_tokens:config.maxTokens || 600}),
+          ? {
+              max_completion_tokens: config.maxTokens || 600,
+              ...(config.model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
+            }
+          : { max_tokens: config.maxTokens || 600 }),
         messages: [{ role: 'system', content: config.systemPrompt }, ...history],
       }),
       signal: AbortSignal.timeout(20_000),
@@ -713,6 +754,10 @@ export class AiAssistantService {
   /**
    * Aggregate AI usage metrics for the dashboard (trailing window).
    */
+  groupUsage(bot: string, since: string) {
+    return this.aiModel.groupUsage(bot, since);
+  }
+
   async getUsageSummary(botId: string, days: number) {
     return this.aiModel.usageSummary(botId, days);
   }

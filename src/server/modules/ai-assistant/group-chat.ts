@@ -6,7 +6,8 @@ export function registerGroupChat(
   bot: Bot,
   chat: string | undefined,
   config: AiConfig,
-  ai: Pick<AiAssistantService, 'complete' | 'isConfigured'>,
+  ai: Pick<AiAssistantService, 'groupAnswer' | 'isConfigured'>,
+  botId: string,
 ) {
   if (!chat) return;
   const replies = new Map<number, { time: number; history: ChatMessage[] }>();
@@ -53,7 +54,14 @@ export function registerGroupChat(
       const turns: ChatMessage[] = [...history, { role: 'user', content: text.slice(0, 1600) }];
       let answer: string;
       try {
-        answer = (await ai.complete(config, turns)).trim();
+        answer = (
+          await ai.groupAnswer(config, turns, {
+            bot: botId,
+            chat,
+            user: ctx.from.id,
+            message: msg.message_id,
+          })
+        ).trim();
       } catch {
         await ctx.reply('Сейчас не получается ответить. Попробуй чуть позже.', options);
         return;

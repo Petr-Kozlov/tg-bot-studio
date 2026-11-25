@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { socialScore } from '../social-rating/social-score';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import type { AiChatHistoryMessage, AiKnowledgeDocEntity } from './ai.entity';
@@ -8,6 +10,65 @@ import type { AiChatHistoryMessage, AiKnowledgeDocEntity } from './ai.entity';
 @Injectable()
 export class AiModel {
   constructor(private readonly prisma: PrismaService) {}
+
+  async groupProfile(bot: string, chat: string, user: string) {
+    const [score, [counts]] = await Promise.all([
+      socialScore(this.prisma, bot, chat, user),
+      this.prisma.$queryRaw<
+        { opened: bigint; total: bigint }[]
+      >`SELECT COUNT(u.user_id) opened,COUNT(*) total FROM achievements a LEFT JOIN achievement_unlocks u ON u.achievement_id=a.id AND u.user_id=${user} WHERE a.bot_id=${bot} AND a.chat_id=${chat}`,
+    ]);
+    return { score, opened: Number(counts.opened), total: Number(counts.total) };
+  }
+
+  async startGroupCall(
+    a: { bot: string; chat: string; user: number; message: number },
+    model: string,
+  ) {
+    const id = randomUUID();
+    const inserted = await this.prisma
+      .$executeRaw`INSERT INTO group_ai_usage(id,bot_id,chat_id,user_id,message_id,model,created_at,status)
+      VALUES(${id},${a.bot},${a.chat},${String(a.user)},${a.message},${model},${new Date().toISOString()},'pending')
+      ON CONFLICT(bot_id,chat_id,message_id) DO NOTHING`;
+    return inserted ? id : null;
+  }
+
+  async endGroupCall(
+    id: string,
+    usage: { prompt_tokens?: number; completion_tokens?: number } | null,
+    error: boolean,
+  ) {
+    await this.prisma
+      .$executeRaw`UPDATE group_ai_usage SET status=${error ? 'error' : 'ok'},prompt_tokens=${usage?.prompt_tokens ?? null},completion_tokens=${usage?.completion_tokens ?? null} WHERE id=${id}`;
+  }
+
+  async groupUsage(bot: string, since: string) {
+    const rows = await this.prisma.$queryRaw<
+      {
+        user: string;
+        chat: string;
+        model: string;
+        requests: bigint;
+        errors: bigint;
+        missing: bigint;
+        input: bigint;
+        output: bigint;
+      }[]
+    >`
+      SELECT user_id user,chat_id chat,model,COUNT(*) requests,SUM(status='error') errors,
+        SUM(prompt_tokens IS NULL OR completion_tokens IS NULL) missing,
+        COALESCE(SUM(prompt_tokens),0) input,COALESCE(SUM(completion_tokens),0) output
+      FROM group_ai_usage WHERE bot_id=${bot} AND created_at>=${since}
+      GROUP BY chat_id,user_id,model ORDER BY requests DESC,user_id`;
+    return rows.map((r) => ({
+      ...r,
+      requests: Number(r.requests),
+      errors: Number(r.errors),
+      missing: Number(r.missing),
+      input: Number(r.input),
+      output: Number(r.output),
+    }));
+  }
 
   /**
    * Loads persisted conversation turns for a user from Prisma.

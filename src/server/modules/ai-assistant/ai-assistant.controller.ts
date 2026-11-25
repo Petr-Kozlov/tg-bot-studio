@@ -262,6 +262,13 @@ export class AiAssistantController {
    * Aggregate AI usage metrics (requests, errors, tokens, latency) for the
    * trailing window, powering the mini metrics panel on the config page.
    */
+  @Get('group-usage')
+  groupUsage(@Param('botId') bot:string,@Query('since') since:string){
+    const time=Date.parse(since);
+    if(!Number.isFinite(time))throw new BadRequestException('Invalid start date');
+    return this.service.groupUsage(bot,new Date(Math.max(time,Date.now()-90*86400000)).toISOString());
+  }
+
   @Get('metrics')
   async metrics(@Param('botId') botId: string, @Query('days') days?: string) {
     const parsed = Math.max(1, Math.min(90, Number(days ?? 7) || 7));

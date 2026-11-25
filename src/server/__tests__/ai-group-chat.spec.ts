@@ -16,13 +16,21 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
     sent.push(msg);
     return { ok: true, result: msg } as never;
   });
-  registerGroupChat(bot, '-100', { historyLimit: 2 } as AiConfig, {
-    isConfigured: () => configured,
-    complete: async (_cfg, turns) => {
-      history.push(turns);
-      return 'Короткий ответ';
+  registerGroupChat(
+    bot,
+    '-100',
+    { historyLimit: 2 } as AiConfig,
+    {
+      isConfigured: () => configured,
+      groupAnswer: async (_cfg, turns, actor) => {
+        expect(actor.chat).toBe('-100');
+        expect(actor.user).toBeGreaterThan(0);
+        history.push(turns);
+        return 'Короткий ответ';
+      },
     },
-  });
+    'bot',
+  );
   async function message(text: string, chat = -100, reply?: number, actor = 5) {
     const user = { is_bot: false, id: actor, first_name: 'Участник' };
     const info = { type: chat > 0 ? 'private' : 'supergroup', id: chat };
