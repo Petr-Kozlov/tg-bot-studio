@@ -29,10 +29,10 @@ test('group prompts separate project facts, ownership and the current sender pro
 test('routes conversation, programming and artwork through the appropriate configured model', async () => {
   const service = new AiAssistantService({ listDocs: async () => [] } as unknown as AiModel, {} as never, {} as never);
   const models: string[] = [];
-  Object.assign(service, { accountedReply: async (cfg: AiConfig) => { if (cfg.model === 'coder') expect(cfg.maxTokens).toBe(1000); models.push(cfg.model); return 'ok'; } });
-  const config = { model: 'chat', codeModel: 'coder', codeMaxTokens: 1000, visionModel: 'vision' } as AiConfig;
+  Object.assign(service, { accountedReply: async (cfg: AiConfig) => { if (cfg.model === 'games') expect(cfg.maxTokens).toBe(4096); if (cfg.model === 'coder') expect(cfg.maxTokens).toBe(1000); models.push(cfg.model); return 'ok'; } });
+  const config = { model: 'chat', codeModel: 'coder', codeMaxTokens: 1000, visionModel: 'vision', gameModel: 'games', gameMaxTokens: 4096 } as AiConfig;
   for (const question of ['В какую игру ты играешь?', 'Напиши функцию сортировки', 'Нарисуй иконку кота', 'Сделай игру на HTML', 'Как дела?']) {
     await service.groupAnswer(config, [{role:'user',content:question}], {bot:'bot',chat:'chat',user:1,message:1});
   }
-  expect(models).toEqual(['chat', 'coder', 'coder', 'coder', 'chat']);
+  expect(models).toEqual(['chat', 'coder', 'coder', 'games', 'chat']);
 });

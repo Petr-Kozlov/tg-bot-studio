@@ -1,3 +1,7 @@
+export function asksForGame(question: string): boolean {
+  return /(?:создай|создайте|сделай|сделайте|напиши|напишите|сгенерируй|реализуй|доработай|исправь|почини|build|create|generate|make|fix)\s+(?:(?:мне|нам|простую|небольшую|браузерную|a|an|simple|browser)\s+)*(?:мини[- ]?)?(?:игру|игрушку|шутер|космо[- ]?шутер|крестики|змейку|game\b|shooter\b)/iu.test(question);
+}
+
 export function usesCodeModel(question: string): boolean {
   const coding = /(?:^|[^\p{L}\p{N}_])(?:код(?:а|у|ом|е)?|скрипт\p{L}*|функци\p{L}*|верстк\p{L}*|вёрстк\p{L}*|алгоритм\p{L}*|регулярк\p{L}*|стектрейс|html|css|svg|javascript|typescript|python|sql|jsx?|tsx?|code|debug|refactor|implementation|c#|c\+\+)(?![\p{L}\p{N}_])/iu;
   if (coding.test(question) || /файл|\bfile\b/iu.test(question)) return true;
