@@ -21,6 +21,9 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
     '-100',
     { historyLimit: 2 } as AiConfig,
     {
+      postComment: async () => {
+        throw Error('unexpected channel comment');
+      },
       isConfigured: () => configured,
       groupAnswer: async (_cfg, turns, actor) => {
         expect(actor.chat).toBe('-100');
@@ -76,4 +79,59 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
   expect(history[2]).toHaveLength(1);
   await message('@GameDevBot другая тема', -100, undefined, 6);
   expect(history).toHaveLength(11);
+});
+
+test('comments on an automatic channel copy in its discussion thread, skips manual forwards and edits', async () => {
+  const bot = new Bot('42:test', {
+    botInfo: { id: 42, is_bot: true, username: 'GameDevBot', first_name: 'Bot' } as never,
+  });
+  const seen = new Set<string>(),
+    sent: number[] = [];
+  bot.api.config.use(async (_, method, p) => {
+    if (method === 'sendMessage')
+      sent.push((p as { reply_parameters: { message_id: number } }).reply_parameters.message_id);
+    return { ok: true, result: { message_id: 200 + sent.length } } as never;
+  });
+  registerGroupChat(
+    bot,
+    '-100',
+    { commentChannelPosts: true } as AiConfig,
+    {
+      isConfigured: () => true,
+      groupAnswer: async () => {
+        throw Error('Unexpected group turn');
+      },
+      postComment: async (_, text, actor) => {
+        expect(text).toBeTruthy();
+        if (seen.has(actor.postKey)) return '';
+        seen.add(actor.postKey);
+        return 'Комментарий';
+      },
+    },
+    'bot',
+  );
+  const channel = { id: -200, type: 'channel' },
+    msg = {
+      chat: { id: -100, type: 'supergroup' },
+      sender_chat: channel,
+      is_automatic_forward: true,
+      message_id: 15,
+      date: 1,
+      forward_origin: { type: 'channel', chat: channel, message_id: 7, date: 1 },
+      photo: [{}],
+      caption: 'Студия Unibox',
+      media_group_id: '1000',
+    };
+  for (const [index, update] of [
+    { message: { ...msg, is_automatic_forward: false } },
+    { edited_message: msg },
+    { channel_post: msg },
+    { message: msg },
+    { message: { ...msg, message_id: 16, caption: undefined } },
+    { message: { ...msg, chat: { id: -150, type: 'supergroup' } } },
+  ].entries()) {
+    await bot.handleUpdate({ update_id: index + 1, ...update } as never);
+  }
+  expect(sent).toEqual([15]);
+  expect([...seen]).toEqual(['-200/album:1000']);
 });

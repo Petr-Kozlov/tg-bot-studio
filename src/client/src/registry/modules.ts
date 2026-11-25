@@ -881,6 +881,7 @@ export const MODULES: ModuleEntry[] = [
         help: 'Ignored for openai/openrouter. Custom example: http://localhost:11434/v1 (Ollama), https://api.deepseek.com/v1',
       },
       { key: 'apiKey', label: 'API key', type: 'password' },
+      { key:'commentChannelPosts', type:'switch',label:'Комментировать новые посты связанного канала' },
       { key:'groupOwnerId', type:'text',label:'Telegram ID владельца для групповых ответов' },
       { key: 'groupMentions', type:'switch', label:'Только в привязанной группе: упоминания и ответы ассистенту' },
       {

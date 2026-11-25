@@ -20,6 +20,13 @@ test('group AI usage records one request per message and separates actors and mi
           .split(';')
           .filter((v) => v.trim()))
           await tx.$executeRawUnsafe(sql);
+        for (const sql of readFileSync(
+          'prisma/migrations/20261125020000_channel_comment_identity/migration.sql',
+          'utf8',
+        )
+          .split(';')
+          .filter((s) => s.trim()))
+          await tx.$executeRawUnsafe(sql);
         const model = new AiModel(tx as PrismaService);
         const actor = { bot: 'fixture', chat: '-1', user: 51, message: 12 };
         const id = await model.startGroupCall(actor, '20b');
@@ -39,6 +46,12 @@ test('group AI usage records one request per message and separates actors and mi
         });
         expect(rows[1]).toMatchObject({ user: '52', requests: 1, errors: 1, missing: 1 });
         expect(await model.groupUsage('other', '2000')).toEqual([]);
+        expect(
+          await model.startGroupCall({ ...actor, message: 40, postKey: 'album:1' }, '20b'),
+        ).toBeTruthy();
+        expect(
+          await model.startGroupCall({ ...actor, message: 41, postKey: 'album:1' }, '20b'),
+        ).toBeNull();
         throw rollback;
       })
       .catch((e) => {

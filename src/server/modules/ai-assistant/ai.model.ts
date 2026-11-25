@@ -22,14 +22,14 @@ export class AiModel {
   }
 
   async startGroupCall(
-    a: { bot: string; chat: string; user: number; message: number },
+    a: { bot: string; chat: string; user: number; message: number; postKey?: string },
     model: string,
   ) {
     const id = randomUUID();
     const inserted = await this.prisma
-      .$executeRaw`INSERT INTO group_ai_usage(id,bot_id,chat_id,user_id,message_id,model,created_at,status)
-      VALUES(${id},${a.bot},${a.chat},${String(a.user)},${a.message},${model},${new Date().toISOString()},'pending')
-      ON CONFLICT(bot_id,chat_id,message_id) DO NOTHING`;
+      .$executeRaw`INSERT INTO group_ai_usage(id,bot_id,chat_id,user_id,message_id,model,created_at,status,post_key)
+      VALUES(${id},${a.bot},${a.chat},${String(a.user)},${a.message},${model},${new Date().toISOString()},'pending',${a.postKey ?? null})
+      ON CONFLICT DO NOTHING`;
     return inserted ? id : null;
   }
 
