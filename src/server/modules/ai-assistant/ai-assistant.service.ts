@@ -28,6 +28,7 @@ export interface AiConfig {
   spontaneousReplies?: boolean;
   visionModel?: string;
   codeModel?: string;
+  codeMaxTokens?: number;
   gameOrigin?: string;
   apiKey: string;
   /** OpenAI-compatible API root, e.g. https://openrouter.ai/api/v1 */
@@ -233,7 +234,7 @@ export class AiAssistantService {
     if (image) effective.model = config.visionModel?.trim() || 'qwen/qwen3.8-27b';
     if (!actor.spontaneous && (attachment || usesCodeModel(q))) {
       if (!image && config.codeModel?.trim()) effective.model = config.codeModel.trim();
-      effective.maxTokens = Math.max(4096, config.maxTokens || 0);
+      effective.maxTokens = Number(config.codeMaxTokens) > 0 ? Math.floor(Number(config.codeMaxTokens)) : Math.max(4096, config.maxTokens || 0);
     }
     return this.accountedReply(effective, providerTurns, actor, systemPrompt, image);
   }
@@ -736,6 +737,7 @@ export class AiAssistantService {
         ...(config.provider === 'groq'
           ? {
               max_completion_tokens: config.maxTokens || 600,
+              ...(config.model === 'qwen/qwen3.8-27b' && config.maxTokens <= 1000 ? { reasoning_effort: 'none' } : {}),
               ...(config.model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
             }
           : { max_tokens: config.maxTokens || 600 }),
