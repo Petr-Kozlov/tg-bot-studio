@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { InputFile, type Bot } from 'grammy';
 import { applyDocumentEdits, DocumentError, readSourceDocument, type SourceDocument } from './source-document';
+import { telegramParts } from './telegram-parts';
 import { generatedFile } from './generated-file';
 import { publishGame } from './ai-games.controller';
 import type { AiAssistantService, AiConfig, ChatMessage } from './ai-assistant.service';
@@ -64,7 +65,9 @@ export function registerGroupChat(
         });
         const comment = content.trim().slice(0, 800);
         if (!comment) return;
-        const sent = await ctx.reply(comment, { reply_parameters: { message_id: m.message_id } });
+        const [part] = telegramParts(comment);
+        if (!part) return;
+        const sent = await ctx.reply(part.text, { entities: part.entities, reply_parameters: { message_id: m.message_id } });
         if (replies.size >= 256) replies.delete(replies.keys().next().value!);
         replies.set(sent.message_id, {
           time: Date.now(),
@@ -192,12 +195,19 @@ export function registerGroupChat(
           Logger.warn('Unable to publish generated game', 'AiAssistantRuntime');
         }
       }
-      const response = file
-        ? await ctx.replyWithDocument(new InputFile(Buffer.from(file.content), file.name), {
+      const responseIds: number[] = [];
+      if (file) {
+        const response = await ctx.replyWithDocument(new InputFile(Buffer.from(file.content), file.name), {
             ...options,
             ...(playUrl ? { reply_markup: { inline_keyboard: [[{ text: '🎮 Играть', url: playUrl }]] } } : {}),
-          })
-        : await ctx.reply(answer.slice(0, 4000), options);
+          });
+        responseIds.push(response.message_id);
+      } else {
+        for (const part of telegramParts(answer)) {
+          const response = await ctx.reply(part.text, { ...options, entities: part.entities });
+          responseIds.push(response.message_id);
+        }
+      }
       const depth = Math.max(1, Math.min(4, config.historyLimit || 2));
       const chain: ChatMessage[] = [
         ...turns,
@@ -205,7 +215,7 @@ export function registerGroupChat(
       ];
       for (const [id, value] of replies) if (value.time <= cutoff) replies.delete(id);
       if (replies.size >= 256) replies.delete(replies.keys().next().value!);
-      replies.set(response.message_id, { time: now, history: chain.slice(-2 * depth) });
+      for (const id of responseIds) replies.set(id, { time: now, history: chain.slice(-2 * depth) });
     } finally {
       await next();
     }
