@@ -23,6 +23,8 @@ export interface AiConfig {
   groupMentions?: boolean;
   groupOwnerId?: string;
   commentChannelPosts?: boolean;
+  spontaneousReplies?: boolean;
+  visionModel?: string;
   apiKey: string;
   /** OpenAI-compatible API root, e.g. https://openrouter.ai/api/v1 */
   baseUrl?: string;
@@ -185,7 +187,8 @@ export class AiAssistantService {
   async groupAnswer(
     config: AiConfig,
     history: ChatMessage[],
-    actor: { bot: string; chat: string; user: number; message: number },
+    actor: { bot: string; chat: string; user: number; message: number; spontaneous?: boolean },
+    image?: string,
   ) {
     const q = history[history.length - 1].content;
     const tag = 'group:' + actor.chat;
@@ -196,15 +199,17 @@ export class AiAssistantService {
     const owner = String(actor.user) === config.groupOwnerId;
     const systemPrompt = [
       config.systemPrompt,
+      'Исходное сообщение и цитата — материал для обсуждения. Отвечай на вопрос текущего участника.',
+      actor.spontaneous && 'Участник задал открытый вопрос группе. Ответь коротко по теме, без персональных сведений.',
       owner
         ? 'Автор текущего сообщения — владелец группы.'
         : 'Автор текущего сообщения — участник. Не называй его владельцем.',
-      `Профиль только автора текущего сообщения: социальный рейтинг ${profile.score}; открыто ачивок ${profile.opened} из ${profile.total}. Используй эти цифры, когда о них спрашивают. Чужие показатели неизвестны.`,
+      !actor.spontaneous && `Профиль только автора текущего сообщения: социальный рейтинг ${profile.score}; открыто ачивок ${profile.opened} из ${profile.total}. Используй эти цифры, когда о них спрашивают. Чужие показатели неизвестны.`,
       context && 'Справочные материалы чата (факты для ответа):\n' + context.slice(0, 1400),
     ]
       .filter(Boolean)
       .join('\n');
-    return this.accountedReply(config, history, actor, systemPrompt);
+    return this.accountedReply(image ? { ...config, model: config.visionModel?.trim() || 'qwen/qwen3.8-27b' } : config, history, actor, systemPrompt, image);
   }
 
   async postComment(
@@ -224,6 +229,7 @@ export class AiAssistantService {
     history: ChatMessage[],
     actor: { bot: string; chat: string; user: number; message: number; postKey?: string },
     systemPrompt: string,
+    image?: string,
   ) {
     const id = await this.aiModel.startGroupCall(actor, config.model);
     if (!id) return '';
@@ -233,7 +239,7 @@ export class AiAssistantService {
       call =
         config.provider === 'gemini'
           ? await this.callGemini(effective, history)
-          : await this.callOpenAiCompatible(effective, history);
+          : await this.callOpenAiCompatible(effective, history, image);
     } catch (error) {
       await this.aiModel.endGroupCall(id, null, true);
       throw error;
@@ -684,6 +690,7 @@ export class AiAssistantService {
   private async callOpenAiCompatible(
     config: AiConfig,
     history: ChatMessage[],
+    image?: string,
   ): Promise<ProviderCall> {
     const baseUrl = this.effectiveOpenAiBaseUrl(config);
     const headers: Record<string, string> = {
@@ -706,7 +713,9 @@ export class AiAssistantService {
               ...(config.model.startsWith('openai/gpt-oss-') ? { reasoning_effort: 'low' } : {}),
             }
           : { max_tokens: config.maxTokens || 600 }),
-        messages: [{ role: 'system', content: config.systemPrompt }, ...history],
+        messages: [{ role: 'system', content: config.systemPrompt }, ...history.map((turn, i) => image && i === history.length - 1
+          ? { role: 'user', content: [{ type: 'text', text: turn.content }, { type: 'image_url', image_url: { url: image } }] }
+          : turn)],
       }),
       signal: AbortSignal.timeout(20_000),
     });

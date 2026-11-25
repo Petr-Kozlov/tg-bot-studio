@@ -135,3 +135,82 @@ test('comments on an automatic channel copy in its discussion thread, skips manu
   expect(sent).toEqual([15]);
   expect([...seen]).toEqual(['-200/album:1000']);
 });
+
+test('sends the replied-to text and quote, and reads direct and quoted photos only when addressed', async () => {
+  const bot = new Bot('42:test', {
+    botInfo: { id: 42, is_bot: true, username: 'GameDevBot', first_name: 'Bot' } as never,
+  });
+  const chat = { id: -100, type: 'supergroup' };
+  const base = { chat, date: 1, from: { id: 5, first_name: 'Test', is_bot: false } };
+  const mention = [{ type: 'mention', offset: 0, length: 11 }];
+  const photo = [{ file_id: 'photo', width: 100, height: 100, file_size: 3 }];
+  const inputs: { content: string; image?: string }[] = [];
+  const replies: number[] = [];
+  bot.api.config.use(async (_, method, payload) => {
+    if (method === 'getFile') return { ok: true, result: { file_path: 'photos/test.jpg' } } as never;
+    replies.push((payload as { reply_parameters: { message_id: number } }).reply_parameters.message_id);
+    return { ok: true, result: { message_id: 100 + replies.length } } as never;
+  });
+  registerGroupChat(bot, '-100', { provider: 'groq' } as AiConfig, {
+    isConfigured: () => true,
+    postComment: async () => '',
+    groupAnswer: async (_, turns, _actor, image) => {
+      inputs.push({ content: turns[turns.length - 1].content, image });
+      return 'Ответ';
+    },
+  }, 'fixture');
+  const before = globalThis.fetch;
+  let downloads = 0;
+  try {
+    globalThis.fetch = Object.assign(async () => { downloads++; return new Response('abc'); }, { preconnect: before.preconnect });
+    const question = { text: '@GameDevBot что думаешь?', entities: mention };
+    const original = { ...base, message_id: 1 };
+    const messages = [
+      { ...question, reply_to_message: { ...original, text: 'Портируем игру' }, quote: { text: 'игру' } },
+      { photo, caption: '@GameDevBot что тут?', caption_entities: mention },
+      { ...question, reply_to_message: { ...original, photo, caption: 'Завтрак' } },
+      { photo, caption: 'Фото без запроса' },
+    ];
+    for (const [i, m] of messages.entries()) {
+      await bot.handleUpdate({ update_id: i + 2, message: { ...base, message_id: i + 2, ...m } } as never);
+    }
+    expect(inputs[0].content).toContain('Исходное сообщение: Портируем игру');
+    expect(inputs[0].content).toContain('Выделенная цитата: игру');
+    expect(inputs[1].image).toBe('data:image/jpeg;base64,YWJj');
+    expect(inputs[2].image).toBe(inputs[1].image);
+    expect(inputs[2].content).toContain('Завтрак');
+    expect(downloads).toBe(2);
+    expect(replies).toEqual([2, 3, 4]);
+  } finally {
+    globalThis.fetch = before;
+  }
+});
+
+test('spontaneous selection answers an open question, skipping commands and direct conversations', async () => {
+  const bot = new Bot('42:test', {
+    botInfo: { id: 42, is_bot: true, username: 'GameDevBot', first_name: 'Bot' } as never,
+  });
+  bot.api.config.use(async () => ({ ok: true, result: { message_id: 100 } }) as never);
+  const selected: number[] = [];
+  registerGroupChat(bot, '-100', { spontaneousReplies: true } as AiConfig, {
+    isConfigured: () => true, postComment: async () => '',
+    groupAnswer: async (_, _turns, actor) => {
+      expect(actor.spontaneous).toBe(true);
+      selected.push(actor.message);
+      return 'Ответ';
+    },
+  }, 'fixture');
+  const original = Math.random;
+  try {
+    Math.random = () => 0;
+    const base = { chat: { id: -100, type: 'supergroup' }, date: 1, from: { id: 5, is_bot: false } };
+    const text = 'Кто сталкивался с такой проблемой в Unity?';
+    const variants = [{ text }, { text: '/report ' + text }, { text: 'спасибо' },
+      { text, reply_to_message: { ...base, message_id: 70, text: 'Предыдущая реплика' } }];
+    for (const [i, variant] of variants.entries())
+      await bot.handleUpdate({ update_id: i + 1, message: { ...base, message_id: i + 1, ...variant } } as never);
+    expect(selected).toEqual([1]);
+  } finally {
+    Math.random = original;
+  }
+});

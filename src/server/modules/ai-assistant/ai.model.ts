@@ -22,10 +22,23 @@ export class AiModel {
   }
 
   async startGroupCall(
-    a: { bot: string; chat: string; user: number; message: number; postKey?: string },
+    a: { bot: string; chat: string; user: number; message: number; postKey?: string; spontaneous?: boolean },
     model: string,
   ) {
     const id = randomUUID();
+    if (a.spontaneous) {
+      const now = new Date();
+      const midnight = now.toISOString().slice(0, 10) + 'T00:00:00.000Z';
+      const cutoff = new Date(+now - 2 * 3600000).toISOString();
+      const reserved = await this.prisma.$executeRaw`INSERT OR IGNORE INTO group_ai_usage
+        (id,bot_id,chat_id,user_id,message_id,model,created_at,status,post_key)
+        SELECT ${id},${a.bot},${a.chat},${String(a.user)},${a.message},${model},${now.toISOString()},'pending',${'initiative:' + a.message}
+        WHERE (SELECT COUNT(*) FROM group_ai_usage WHERE bot_id=${a.bot} AND chat_id=${a.chat}
+          AND post_key LIKE 'initiative:%' AND created_at>=${midnight}) < 2
+        AND NOT EXISTS (SELECT 1 FROM group_ai_usage WHERE bot_id=${a.bot} AND chat_id=${a.chat}
+          AND post_key LIKE 'initiative:%' AND created_at>=${cutoff})`;
+      return reserved ? id : null;
+    }
     const inserted = await this.prisma
       .$executeRaw`INSERT INTO group_ai_usage(id,bot_id,chat_id,user_id,message_id,model,created_at,status,post_key)
       VALUES(${id},${a.bot},${a.chat},${String(a.user)},${a.message},${model},${new Date().toISOString()},'pending',${a.postKey ?? null})

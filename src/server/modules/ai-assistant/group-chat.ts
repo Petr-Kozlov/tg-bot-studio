@@ -77,22 +77,23 @@ export function registerGroupChat(
       }
     });
   }
-  bot.on('message:text', async (ctx, next) => {
+  bot.on(['message:text', 'message:photo'], async (ctx, next) => {
     try {
       const msg = ctx.message;
+      const body = msg.text ?? msg.caption ?? '';
       if (
         String(ctx.chat.id) !== chat ||
         msg.sender_chat ||
         !ctx.from ||
         ctx.from.is_bot ||
-        msg.text.startsWith('/') ||
+        body.startsWith('/') ||
         !ai.isConfigured(config)
       )
         return;
-      const mention = msg.entities?.find(
+      const mention = (msg.entities ?? msg.caption_entities)?.find(
         (e) =>
           e.type === 'mention' &&
-          msg.text.slice(e.offset, e.offset + e.length).toLowerCase() ===
+          body.slice(e.offset, e.offset + e.length).toLowerCase() ===
             '@' + ctx.me.username.toLowerCase(),
       );
       const now = Date.now(),
@@ -102,13 +103,18 @@ export function registerGroupChat(
           ? replies.get(msg.reply_to_message.message_id)
           : undefined;
       const history = parent && parent.time > cutoff ? parent.history : [];
-      if (!mention && !history.length) return;
+      const spontaneous = !mention && !history.length;
+      if (spontaneous && (!config.spontaneousReplies || msg.reply_to_message || !msg.text ||
+          msg.entities?.some(e => ['mention', 'text_mention', 'bot_command'].includes(e.type)) ||
+          body.length < 24 || !body.trimEnd().endsWith('?') || Math.random() >= 0.05)) return;
       const text = (
         mention
-          ? msg.text.slice(0, mention.offset) + msg.text.slice(mention.offset + mention.length)
-          : msg.text
+          ? body.slice(0, mention.offset) + body.slice(mention.offset + mention.length)
+          : body
       ).trim();
-      if (!text) return;
+      const source = msg.reply_to_message;
+      const photos = msg.photo ?? source?.photo;
+      if (!text && !photos?.length) return;
       const options = {
         reply_parameters: { message_id: msg.message_id },
         ...(msg.is_topic_message ? { message_thread_id: msg.message_thread_id } : {}),
@@ -116,20 +122,43 @@ export function registerGroupChat(
       for (const [id, times] of usage) if (times[times.length - 1] <= cutoff) usage.delete(id);
       const times = (usage.get(ctx.from.id) ?? []).filter((t) => t > cutoff);
       if (times.length >= 10) return;
-      usage.set(ctx.from.id, [...times, now]);
-      const turns: ChatMessage[] = [...history, { role: 'user', content: text.slice(0, 1600) }];
+      if (!spontaneous) usage.set(ctx.from.id, [...times, now]);
+      const original = !history.length && (source?.text || source?.caption);
+      const content = [
+        original && 'Исходное сообщение: ' + original.slice(0, 2000),
+        msg.quote?.text && 'Выделенная цитата: ' + msg.quote.text.slice(0, 1000),
+        (original || msg.quote ? 'Вопрос участника: ' : '') + (text.slice(0, 1600) || 'Что на картинке?'),
+      ].filter(Boolean).join('\n');
+      const turns: ChatMessage[] = [...history, { role: 'user', content }];
       let answer: string;
       try {
+        let image: string | undefined;
+        if (photos?.length) {
+          if (!config.visionModel?.trim() && config.provider !== 'groq' || config.provider === 'gemini') {
+            await ctx.reply('Для этого чата ещё не настроен разбор фотографий.', options);
+            return;
+          }
+          const photo = [...photos].reverse().find(p => p.width <= 1600 && (p.file_size ?? 0) <= 4_000_000) ?? photos[0];
+          const file = await bot.api.getFile(photo.file_id);
+          if (!file.file_path || (file.file_size ?? 0) > 4_000_000) throw Error('Invalid photo');
+          const result = await fetch('https://api.telegram.org/file/bot' + bot.token + '/' + file.file_path,
+            { signal: AbortSignal.timeout(10000), redirect: 'error' });
+          if (!result.ok) throw Error('Photo download failed');
+          const bytes = Buffer.from(await result.arrayBuffer());
+          if (!bytes.length || bytes.length > 4_000_000) throw Error('Invalid photo size');
+          image = 'data:image/jpeg;base64,' + bytes.toString('base64');
+        }
         answer = (
           await ai.groupAnswer(config, turns, {
             bot: botId,
             chat,
             user: ctx.from.id,
             message: msg.message_id,
-          })
+            ...(spontaneous ? { spontaneous: true } : {}),
+          }, image)
         ).trim();
       } catch {
-        await ctx.reply('Сейчас не получается ответить. Попробуй чуть позже.', options);
+        if (!spontaneous) await ctx.reply('Сейчас не получается ответить. Попробуй чуть позже.', options);
         return;
       }
       if (!answer) return;

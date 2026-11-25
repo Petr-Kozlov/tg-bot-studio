@@ -52,6 +52,10 @@ test('group AI usage records one request per message and separates actors and mi
         expect(
           await model.startGroupCall({ ...actor, message: 41, postKey: 'album:1' }, '20b'),
         ).toBeNull();
+        const unsolicited = { ...actor, spontaneous: true, message: 50 };
+        expect(await model.startGroupCall(unsolicited, '20b')).toBeTruthy();
+        expect(await model.startGroupCall({ ...unsolicited, message: 51 }, '20b')).toBeNull();
+        expect(await model.startGroupCall({ ...actor, message: 52 }, '20b')).toBeTruthy();
         throw rollback;
       })
       .catch((e) => {
