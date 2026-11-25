@@ -25,3 +25,14 @@ test('group prompts separate project facts, ownership and the current sender pro
   expect(profileReads).toEqual(['2']);
   expect(prompts[2]).toContain('совпадает');
 });
+
+test('routes conversation, programming and artwork through the appropriate configured model', async () => {
+  const service = new AiAssistantService({ listDocs: async () => [] } as unknown as AiModel, {} as never, {} as never);
+  const models: string[] = [];
+  Object.assign(service, { accountedReply: async (cfg: AiConfig) => { models.push(cfg.model); return 'ok'; } });
+  const config = { model: 'chat', codeModel: 'coder', visionModel: 'vision' } as AiConfig;
+  for (const question of ['В какую игру ты играешь?', 'Напиши функцию сортировки', 'Нарисуй иконку кота', 'Сделай игру на HTML', 'Как дела?']) {
+    await service.groupAnswer(config, [{role:'user',content:question}], {bot:'bot',chat:'chat',user:1,message:1});
+  }
+  expect(models).toEqual(['chat', 'coder', 'coder', 'coder', 'chat']);
+});

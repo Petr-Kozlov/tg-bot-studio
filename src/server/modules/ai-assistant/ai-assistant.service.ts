@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { editInstructions, type SourceDocument } from './source-document';
-import { fileInstructions } from './generated-file';
+import { fileInstructions, usesCodeModel } from './generated-file';
 import { AiModel } from './ai.model';
 import { BotUserModel } from '../users-crm/bot-user.model';
 import { MiniAppModel } from '../mini-apps/mini-app.model';
@@ -230,7 +230,7 @@ export class AiAssistantService {
     ] : turns;
     const effective = { ...config };
     if (image) effective.model = config.visionModel?.trim() || 'qwen/qwen3.8-27b';
-    if (!actor.spontaneous && (attachment || /файл|игр[ауые]|крестики|змейк|\b(?:file|game)\b/iu.test(q))) {
+    if (!actor.spontaneous && (attachment || usesCodeModel(q))) {
       if (!image && config.codeModel?.trim()) effective.model = config.codeModel.trim();
       effective.maxTokens = Math.max(4096, config.maxTokens || 0);
     }

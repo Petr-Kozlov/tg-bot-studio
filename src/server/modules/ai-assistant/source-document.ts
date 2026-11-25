@@ -13,8 +13,8 @@ export async function readSourceDocument(
   bot: Bot, document: { file_id: string; file_name?: string; file_size?: number }, game: boolean,
 ): Promise<SourceDocument> {
   const name = document.file_name;
-  if (!name || !/\.(?:html?|css|[cm]?js|jsx|ts|tsx|json|md|txt)$/i.test(name) || /[\\/\x00-\x1f]/.test(name))
-    throw new DocumentError('Пришли текстовый файл HTML, CSS, JS, TS, JSON, Markdown или TXT.');
+  if (!name || !/\.(?:html?|svg|css|[cm]?js|jsx|ts|tsx|json|md|txt)$/i.test(name) || /[\\/\x00-\x1f]/.test(name))
+    throw new DocumentError('Пришли текстовый файл HTML, SVG, CSS, JS, TS, JSON, Markdown или TXT.');
   const limitError = () => new DocumentError('Файл больше 64 КиБ. Пришли нужный модуль отдельно.');
   if ((document.file_size ?? 0) > maxBytes) throw limitError();
   const file = await bot.api.getFile(document.file_id);
