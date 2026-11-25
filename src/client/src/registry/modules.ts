@@ -881,6 +881,7 @@ export const MODULES: ModuleEntry[] = [
         help: 'Ignored for openai/openrouter. Custom example: http://localhost:11434/v1 (Ollama), https://api.deepseek.com/v1',
       },
       { key: 'apiKey', label: 'API key', type: 'password' },
+      { key: 'freshFacts', type: 'switch', label: 'Проверять свежие факты через Groq и курс доллара через ЦБ РФ' },
       { key: 'spontaneousReplies', type: 'switch', label: 'Иногда отвечать на вопросы без упоминания (до двух раз в сутки)' },
       { key: 'codeMaxTokens', type: 'number', label: 'Лимит выходных токенов для кода и файлов' },
       { key: 'gameModel', type: 'text', label: 'Модель для генерации игр' },

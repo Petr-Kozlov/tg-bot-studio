@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { editInstructions, type SourceDocument } from './source-document';
+import { freshIntent, officialDollar, sourcedReply } from './fresh-facts';
 import { asksForGame, fileInstructions, usesCodeModel } from './generated-file';
 import { AiModel } from './ai.model';
 import { BotUserModel } from '../users-crm/bot-user.model';
@@ -31,6 +32,7 @@ export interface AiConfig {
   codeMaxTokens?: number;
   gameModel?: string;
   gameMaxTokens?: number;
+  freshFacts?: boolean;
   gameOrigin?: string;
   apiKey: string;
   /** OpenAI-compatible API root, e.g. https://openrouter.ai/api/v1 */
@@ -200,6 +202,16 @@ export class AiAssistantService {
   ) {
     const q = history[history.length - 1].content;
     const game = !actor.spontaneous && asksForGame(q);
+    if (config.freshFacts && !game && !image && !attachment) {
+      const intent = freshIntent(q);
+      if (intent === 'usd') return officialDollar();
+      if (intent === 'search') {
+        if (config.provider !== 'groq') return 'Для проверки источников требуется Groq.';
+        const prompt = 'Сегодня ' + new Date().toISOString().slice(0, 10) +
+          '. Проверь вопрос через поиск, обязательно открой подходящий первоисточник через browser.open. Для релиза различай подтверждение выхода и объявленную дату. Кратко ответь по-русски и укажи точный URL открытой страницы. При недостатке данных сообщи об этом.';
+        return this.accountedReply({ ...config, model: 'openai/gpt-oss-120b', maxTokens: 2048 }, history, actor, prompt, undefined, true);
+      }
+    }
     const asksAboutProfile = /рейтинг|ачив|достижени|репутаци|\b(?:rating|achievements?)\b/iu.test(q);
     const tag = 'group:' + actor.chat;
     const [{ context }, profile] = await Promise.all([
@@ -264,6 +276,7 @@ export class AiAssistantService {
     actor: { bot: string; chat: string; user: number; message: number; postKey?: string },
     systemPrompt: string,
     image?: string,
+    search = false,
   ) {
     const id = await this.aiModel.startGroupCall(actor, config.model);
     if (!id) return '';
@@ -273,7 +286,7 @@ export class AiAssistantService {
       call =
         config.provider === 'gemini'
           ? await this.callGemini(effective, history)
-          : await this.callOpenAiCompatible(effective, history, image);
+          : await this.callOpenAiCompatible(effective, history, image, search);
     } catch (error) {
       await this.aiModel.endGroupCall(id, null, true);
       throw error;
@@ -725,6 +738,7 @@ export class AiAssistantService {
     config: AiConfig,
     history: ChatMessage[],
     image?: string,
+    search = false,
   ): Promise<ProviderCall> {
     const baseUrl = this.effectiveOpenAiBaseUrl(config);
     const headers: Record<string, string> = {
@@ -741,6 +755,7 @@ export class AiAssistantService {
       headers,
       body: JSON.stringify({
         model: config.model || this.defaultChatModel(config),
+        ...(search ? { tools: [{ type: 'browser_search' }], tool_choice: 'required' } : {}),
         ...(config.provider === 'groq'
           ? {
               max_completion_tokens: config.maxTokens || 600,
@@ -752,17 +767,17 @@ export class AiAssistantService {
           ? { role: 'user', content: [{ type: 'text', text: turn.content }, { type: 'image_url', image_url: { url: image } }] }
           : turn)],
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(search ? 45_000 : 20_000),
     });
     if (!response.ok) {
       throw new Error(`AI request to ${baseUrl} failed with status ${response.status}`);
     }
     const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: Array<{ message?: { content?: string; executed_tools?: Array<{ name?: string; output?: string }> } }>;
       usage?: ChatUsage;
     };
     return {
-      reply: payload.choices?.[0]?.message?.content ?? 'No response generated.',
+      reply: search ? sourcedReply(payload.choices?.[0]?.message?.content ?? '', payload.choices?.[0]?.message?.executed_tools) : payload.choices?.[0]?.message?.content ?? 'No response generated.',
       usage: payload.usage ?? null,
       latencyMs: Date.now() - started,
     };
