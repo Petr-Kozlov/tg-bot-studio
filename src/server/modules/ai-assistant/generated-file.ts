@@ -1,5 +1,8 @@
 export function asksForGame(question: string): boolean {
-  return /(?:создай|создайте|сделай|сделайте|напиши|напишите|сгенерируй|реализуй|доработай|исправь|почини|build|create|generate|make|fix)\s+(?:(?:мне|нам|простую|небольшую|браузерную|a|an|simple|browser)\s+)*(?:мини[- ]?)?(?:игру|игрушку|шутер|космо[- ]?шутер|крестики|змейку|game\b|shooter\b)/iu.test(question);
+  const action = /созда(?:й|ть|йте)|сдела(?:й|ть|йте)|напиш(?:и|ите)|написать|сгенерируй|разработай|хочу|build|create|generate|make/iu;
+  const genre = /(?:^|[^\p{L}])(?:игру|игрушку|шутер|платформер|аркаду|гонку|гонки|змейку|крестики|раннер|тетрис|game|shooter|platformer)(?!\p{L})/iu;
+  if (/как\s+(?:мне\s+)?(?:сделать|создать|написать)/iu.test(question)) return false;
+  return action.test(question) && genre.test(question);
 }
 
 export function usesCodeModel(question: string): boolean {
@@ -9,9 +12,11 @@ export function usesCodeModel(question: string): boolean {
   return create.test(question) && /игр|игор|крестики|змейк|иконк|картинк|иллюстраци|вектор|логотип|\b(?:game|icon|image|logo)\b/iu.test(question);
 }
 
+export const gameAssets = 'Для 3D доступен Three.js как обычный script https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js (глобальный THREE), для jQuery https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js. Картинки можно загружать по HTTPS; для WebGL нужны CORS и запасной материал при ошибке текстуры. Другие библиотеки доступны по версионированным адресам cdnjs.cloudflare.com/ajax/libs/.';
+
 export const fileInstructions = [
   'Если участник просит создать или прислать файл, верни только его полное содержимое между отдельными строками FILE: имя.ext и END_FILE. Для обычного вопроса отвечай текстом.',
-  'Для запроса создать игру без явно заданной другой платформы сделай компактную автономную браузерную игру: первая строка GAME: game.html, далее полный HTML с CSS и JavaScript внутри и строка END_FILE. Управление должно работать касаниями. Не используй сеть, внешние библиотеки, хранилище или Markdown-ограждения.',
+  'Для запроса создать игру без явно заданной другой платформы сделай компактную автономную браузерную игру: первая строка GAME: game.html, далее полный HTML с CSS и JavaScript внутри и строка END_FILE. Управление должно работать касаниями. Не используй хранилище и Markdown-ограждения.',
   'Если просят нарисовать иконку, простую картинку или SVG, создай автономный векторный рисунок как FILE: drawing.svg, без скриптов и внешних ресурсов. Если явно запрошена фотография или растровая генерация, объясни, что доступен SVG.',
   'Для других текстовых форматов используй FILE. Для бинарного формата, который не можешь создать, объясни ограничение обычным текстом.',
 ].join(' ');

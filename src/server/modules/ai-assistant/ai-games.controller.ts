@@ -25,7 +25,7 @@ export class AiGamesController {
       throw error;
     });
     const escaped = html.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    res.set('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; media-src data:; frame-src about:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'");
+    res.set('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com/ajax/libs/; style-src 'unsafe-inline'; img-src data: https:; media-src data:; frame-src about:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'");
     res.set('Referrer-Policy', 'no-referrer');
     return res.type('html').send('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Игра GameDev</title><style>body{margin:0}iframe{display:block;border:0;width:100vw;height:100dvh}</style><iframe title="Игра" sandbox="allow-scripts" srcdoc="' + escaped + '"></iframe></html>');
   }

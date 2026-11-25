@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { InputFile, type Bot } from 'grammy';
 import { applyDocumentEdits, DocumentError, readSourceDocument, type SourceDocument } from './source-document';
+import { GameMemory, gameEdit, specificGameEdit } from './game-memory';
 import { telegramParts } from './telegram-parts';
 import { asksForGame, generatedFile } from './generated-file';
 import { publishGame } from './ai-games.controller';
@@ -84,6 +85,7 @@ export function registerGroupChat(
     });
   }
   bot.on(['message:text', 'message:photo', 'message:document'], async (ctx, next) => {
+    let unlock: (() => void) | undefined;
     try {
       const msg = ctx.message;
       const body = msg.text ?? msg.caption ?? '';
@@ -108,11 +110,18 @@ export function registerGroupChat(
         msg.reply_to_message?.from?.id === ctx.me.id
           ? replies.get(msg.reply_to_message.message_id)
           : undefined;
-      const history = parent && parent.time > cutoff ? parent.history : [];
+      const memory = config.gameModel ? new GameMemory(botId, chat, msg.message_thread_id ?? 0, ctx.from.id) : undefined;
+      const edit = gameEdit.test(body);
+      const possibleFollowup = !msg.reply_to_message && edit && specificGameEdit.test(body);
+      const addressed = !!mention || msg.reply_to_message?.from?.id === ctx.me.id;
+      if (addressed || possibleFollowup) unlock = await memory?.lock();
+      const saved = addressed || possibleFollowup ? await memory?.read() : undefined;
+      const followup = possibleFollowup && !!saved?.game;
+      const history = parent && parent.time > cutoff ? parent.history : (addressed || followup ? saved?.history ?? [] : []);
       const source = msg.reply_to_message;
       const document = msg.document ?? source?.document;
       const replyToBotFile = source?.from?.id === ctx.me.id && !!source.document;
-      const spontaneous = !mention && !history.length && !replyToBotFile;
+      const spontaneous = !mention && !(memory && addressed) && !followup && !history.length && !replyToBotFile;
       if (spontaneous && (!config.spontaneousReplies || msg.reply_to_message || !msg.text ||
           msg.entities?.some(e => ['mention', 'text_mention', 'bot_command'].includes(e.type)) ||
           body.length < 24 || !body.trimEnd().endsWith('?') || Math.random() >= 0.05)) return;
@@ -135,10 +144,12 @@ export function registerGroupChat(
       const content = [
         original && 'Исходное сообщение: ' + original.slice(0, 2000),
         msg.quote?.text && 'Выделенная цитата: ' + msg.quote.text.slice(0, 1000),
-        (original || msg.quote ? 'Вопрос участника: ' : '') + (text.slice(0, 1600) || 'Что на картинке?'),
+        (original || msg.quote ? 'Вопрос участника: ' : '') + (text.slice(0, 4096) || 'Что на картинке?'),
       ].filter(Boolean).join('\n');
       const turns: ChatMessage[] = [...history, { role: 'user', content }];
-      let attachment: SourceDocument | undefined;
+      const editingSaved = !document && !photos?.length && saved?.game && edit && !asksForGame(text);
+      let attachment: SourceDocument | undefined = editingSaved ? saved.game : undefined;
+      if (editingSaved && saved.requirements.length) turns.splice(0, 0, { role: 'user', content: 'Ранее запрошенные свойства игры: ' + saved.requirements.join('; ') });
       let answer: string;
       try {
         let image: string | undefined;
@@ -184,6 +195,7 @@ export function registerGroupChat(
         if (attachment && /^(?:GAME|FILE):/.test(answer)) throw Error('Expected edits');
         file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer, asksForGame(text));
       } catch {
+        Logger.warn({ event: 'game-file-validation', bot: botId, message: msg.message_id, editing: !!attachment, bytes: Buffer.byteLength(answer) }, 'AiAssistantRuntime');
         await ctx.reply(attachment ? 'Не удалось однозначно применить правку. Исходник сохранён. Попробуй попросить одно изменение за раз.' : 'Файл получился неполным. Попробуй запросить более короткую версию.', options);
         return;
       }
@@ -211,12 +223,20 @@ export function registerGroupChat(
       const depth = Math.max(1, Math.min(4, config.historyLimit || 2));
       const chain: ChatMessage[] = [
         ...turns,
-        { role: 'assistant', content: answer.slice(0, 1600) },
+        { role: 'assistant', content: file ? 'Выдан файл ' + file.name : answer.slice(0, 1600) },
       ];
+      if (memory && !spontaneous) {
+        const previous = saved;
+        if (!previous || previous.message < msg.message_id) {
+          const requirements = file?.game ? [...(attachment?.game ? saved?.requirements ?? [] : []), text.slice(0, 500)].slice(-8) : previous?.requirements ?? [];
+          await memory.save({ history: chain.slice(-2 * depth), requirements, game: file?.game ? file : previous?.game, message: msg.message_id });
+        }
+      }
       for (const [id, value] of replies) if (value.time <= cutoff) replies.delete(id);
       if (replies.size >= 256) replies.delete(replies.keys().next().value!);
       for (const id of responseIds) replies.set(id, { time: now, history: chain.slice(-2 * depth) });
     } finally {
+      unlock?.();
       await next();
     }
   });
