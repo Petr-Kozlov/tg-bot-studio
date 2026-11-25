@@ -16,7 +16,7 @@ export const fileInstructions = [
   'Для других текстовых форматов используй FILE. Для бинарного формата, который не можешь создать, объясни ограничение обычным текстом.',
 ].join(' ');
 
-export function generatedFile(answer: string) {
+export function generatedFile(answer: string, requestedGame = false) {
   const header = /^(GAME|FILE):[ \t]*([^\r\n]+)\r?\n/.exec(answer);
   if (!header) return null;
   const name = header[2].trim();
@@ -24,7 +24,7 @@ export function generatedFile(answer: string) {
   if (!end || !/^[\p{L}\p{N}_-][\p{L}\p{N} ._-]{0,75}\.[a-z\d]{1,10}$/iu.test(name))
     throw Error('Incomplete file');
   const content = answer.slice(header[0].length, end.index);
-  const game = header[1] === 'GAME';
+  const game = header[1] === 'GAME' || (requestedGame && /\.html?$/i.test(name));
   if (!content.trim() || (game && (!/\.html?$/i.test(name) || !/<\/html>\s*$/i.test(content))))
     throw Error('Incomplete file');
   return { name, content, game };

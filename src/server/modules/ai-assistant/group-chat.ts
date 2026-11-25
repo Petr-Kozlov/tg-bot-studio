@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { InputFile, type Bot } from 'grammy';
 import { applyDocumentEdits, DocumentError, readSourceDocument, type SourceDocument } from './source-document';
 import { telegramParts } from './telegram-parts';
-import { generatedFile } from './generated-file';
+import { asksForGame, generatedFile } from './generated-file';
 import { publishGame } from './ai-games.controller';
 import type { AiAssistantService, AiConfig, ChatMessage } from './ai-assistant.service';
 
@@ -182,7 +182,7 @@ export function registerGroupChat(
       let file;
       try {
         if (attachment && /^(?:GAME|FILE):/.test(answer)) throw Error('Expected edits');
-        file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer);
+        file = attachment ? applyDocumentEdits(attachment, answer) : spontaneous ? null : generatedFile(answer, asksForGame(text));
       } catch {
         await ctx.reply(attachment ? 'Не удалось однозначно применить правку. Исходник сохранён. Попробуй попросить одно изменение за раз.' : 'Файл получился неполным. Попробуй запросить более короткую версию.', options);
         return;

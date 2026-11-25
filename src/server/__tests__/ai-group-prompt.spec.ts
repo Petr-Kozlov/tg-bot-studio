@@ -1,3 +1,4 @@
+import { generatedFile } from '../modules/ai-assistant/generated-file';
 import { expect, test } from 'bun:test';
 import { AiAssistantService, type AiConfig } from '../modules/ai-assistant/ai-assistant.service';
 import type { AiModel } from '../modules/ai-assistant/ai.model';
@@ -35,4 +36,11 @@ test('routes conversation, programming and artwork through the appropriate confi
     await service.groupAnswer(config, [{role:'user',content:question}], {bot:'bot',chat:'chat',user:1,message:1});
   }
   expect(models).toEqual(['chat', 'coder', 'coder', 'games', 'chat']);
+});
+
+test('a complete requested HTML game gets a play button even with a FILE header', () => {
+  const answer = 'FILE: index.html\n<html></html>\nEND_FILE';
+  expect(generatedFile(answer, true)?.game).toBe(true);
+  expect(generatedFile(answer)?.game).toBe(false);
+  expect(() => generatedFile(answer.replace('</html>', ''), true)).toThrow();
 });
