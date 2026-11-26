@@ -25,6 +25,8 @@ export interface ModuleDefinition {
   chatScoped?: boolean;
 }
 
+export const GROUP_AI_LIMIT_DEFAULTS = { groupRequestLimit: 100, groupWindowMinutes: 30 } as const;
+
 /**
  * The full module catalog (36 toggleable modules).
  * @type {readonly ModuleDefinition[]}
@@ -418,6 +420,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
         'You are a professional customer support assistant. Answer concisely, accurately, and politely. Never invent facts. Reply in the language of the user.',
       maxTokens: 600,
       historyLimit: 6,
+      ...GROUP_AI_LIMIT_DEFAULTS,
     },
   },
   {

@@ -891,6 +891,8 @@ export const MODULES: ModuleEntry[] = [
       { key:'commentChannelPosts', type:'switch',label:'Комментировать новые посты связанного канала' },
       { key:'groupOwnerId', type:'text',label:'Telegram ID владельца для групповых ответов' },
       { key: 'groupMentions', type:'switch', label:'Только в привязанной группе: упоминания и ответы ассистенту' },
+      { key: 'groupRequestLimit', type: 'number', label: 'Обращений к AI на участника', help: 'Общий лимит для переписки, файлов и игр в группе.' },
+      { key: 'groupWindowMinutes', type: 'number', label: 'Период лимита (минуты)', help: 'Скользящее окно: каждое обращение освобождает место через указанное число минут.' },
       {
         key: 'model',
         label: 'Model',

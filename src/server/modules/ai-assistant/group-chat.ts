@@ -1,3 +1,4 @@
+import { GROUP_AI_LIMIT_DEFAULTS } from '../../bot-engine/module-registry';
 import { Logger } from '@nestjs/common';
 import { InputFile, type Bot } from 'grammy';
 import { applyDocumentEdits, DocumentError, readSourceDocument, type SourceDocument } from './source-document';
@@ -18,6 +19,8 @@ export function registerGroupChat(
 ) {
   if (!chat) return;
   const replies = new Map<number, { time: number; history: ChatMessage[] }>();
+  const requestLimit = config.groupRequestLimit ?? GROUP_AI_LIMIT_DEFAULTS.groupRequestLimit;
+  const windowMs = (config.groupWindowMinutes ?? GROUP_AI_LIMIT_DEFAULTS.groupWindowMinutes) * 60_000;
   const usage = new Map<number, number[]>();
   if (config.commentChannelPosts) {
     bot.on('message', async (ctx, next) => {
@@ -137,9 +140,10 @@ export function registerGroupChat(
         reply_parameters: { message_id: msg.message_id },
         ...(msg.is_topic_message ? { message_thread_id: msg.message_thread_id } : {}),
       };
-      for (const [id, times] of usage) if (times[times.length - 1] <= cutoff) usage.delete(id);
-      const times = (usage.get(ctx.from.id) ?? []).filter((t) => t > cutoff);
-      if (times.length >= 10) return;
+      const usageCutoff = now - windowMs;
+      for (const [id, times] of usage) if (times[times.length - 1] <= usageCutoff) usage.delete(id);
+      const times = (usage.get(ctx.from.id) ?? []).filter((t) => t > usageCutoff);
+      if (times.length >= requestLimit) return;
       if (!spontaneous) usage.set(ctx.from.id, [...times, now]);
       const original = !history.length && (source?.text || source?.caption);
       const content = [

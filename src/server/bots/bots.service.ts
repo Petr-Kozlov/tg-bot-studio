@@ -333,6 +333,15 @@ export class BotsService {
     const definition = findModule(moduleKey);
     if (!definition) throw new NotFoundException(`Module ${moduleKey} not found`);
 
+    if (moduleKey === 'ai-assistant') {
+      for (const key of ['groupRequestLimit', 'groupWindowMinutes']) {
+        const value = dto.config?.[key];
+        if (value !== undefined && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)) {
+          throw new BadRequestException('Лимит обращений и период должны быть целыми числами больше нуля.');
+        }
+      }
+    }
+
     const existing = await this.prisma.botModule.findUnique({
       where: { botId_moduleKey: { botId, moduleKey } },
     });

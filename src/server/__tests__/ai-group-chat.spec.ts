@@ -1,9 +1,10 @@
-import { expect, test } from 'bun:test';
+import { expect, test, spyOn } from 'bun:test';
 import { Bot } from 'grammy';
 import { registerGroupChat } from '../modules/ai-assistant/group-chat';
 import type { AiConfig, ChatMessage } from '../modules/ai-assistant/ai-assistant.service';
 
-test('only answers direct group turns, keeps reply chains separate and limits calls', async () => {
+test.each([[undefined, undefined, 100, 30], [3, 7, 3, 7]] as const)(
+  'limits direct group turns per user (limit %s, minutes %s)', async (groupRequestLimit, groupWindowMinutes, limit, minutes) => {
   const bot = new Bot('42:test', {
     botInfo: { id: 42, is_bot: true, username: 'GameDevBot', first_name: 'Bot' } as never,
   });
@@ -20,7 +21,7 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
   registerGroupChat(
     bot,
     '-100',
-    { historyLimit: 2 } as AiConfig,
+    { historyLimit: 2, groupRequestLimit, groupWindowMinutes } as AiConfig,
     {
       postComment: async () => {
         throw Error('unexpected channel comment');
@@ -70,16 +71,28 @@ test('only answers direct group turns, keeps reply chains separate and limits ca
   await message('/rules @GameDevBot');
   await message('спасибо', -100, 42);
   expect(history).toHaveLength(0);
-  await message('@GameDevBot привет');
-  expect(history[0]).toEqual([{ role: 'user', content: 'привет' }]);
-  expect(sent[0].reply_parameters.message_id).toBe(id);
-  await message('ещё идею', -100, sent[0].message_id);
-  expect(history[1].map((m) => m.content)).toEqual(['привет', 'Короткий ответ', 'ещё идею']);
-  for (let i = 0; i < 10; i++) await message('@GameDevBot новая тема');
-  expect(history).toHaveLength(10);
-  expect(history[2]).toHaveLength(1);
-  await message('@GameDevBot другая тема', -100, undefined, 6);
-  expect(history).toHaveLength(11);
+  const start = Date.now();
+  const clock = spyOn(Date, 'now').mockReturnValue(start);
+  try {
+    await message('@GameDevBot привет');
+    expect(history[0]).toEqual([{ role: 'user', content: 'привет' }]);
+    expect(sent[0].reply_parameters.message_id).toBe(id);
+    await message('ещё идею', -100, sent[0].message_id);
+    expect(history[1].map((m) => m.content)).toEqual(['привет', 'Короткий ответ', 'ещё идею']);
+    for (let i = 0; i < limit; i++) await message('@GameDevBot новая тема');
+    expect(history).toHaveLength(limit);
+    expect(history[2]).toHaveLength(1);
+    await message('@GameDevBot другая тема', -100, undefined, 6);
+    expect(history).toHaveLength(limit + 1);
+    clock.mockReturnValue(start + minutes * 60_000 - 1);
+    await message('@GameDevBot ещё вопрос');
+    expect(history).toHaveLength(limit + 1);
+    clock.mockReturnValue(start + minutes * 60_000);
+    await message('@GameDevBot ещё вопрос');
+    expect(history).toHaveLength(limit + 2);
+  } finally {
+    clock.mockRestore();
+  }
 });
 
 test('comments on an automatic channel copy in its discussion thread, skips manual forwards and edits', async () => {

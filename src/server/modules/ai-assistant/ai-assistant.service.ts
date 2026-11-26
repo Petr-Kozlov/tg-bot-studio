@@ -26,6 +26,8 @@ export interface ChatMessage {
 export interface AiConfig {
   provider: 'openai' | 'openrouter' | 'gemini' | 'groq' | 'custom';
   groupMentions?: boolean;
+  groupRequestLimit?: number;
+  groupWindowMinutes?: number;
   groupOwnerId?: string;
   commentChannelPosts?: boolean;
   spontaneousReplies?: boolean;
