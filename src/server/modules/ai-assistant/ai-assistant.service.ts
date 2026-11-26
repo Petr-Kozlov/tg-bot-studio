@@ -225,6 +225,23 @@ export class AiAssistantService {
       this.retrieveKnowledgeDocs(actor.bot, { ...config, knowledgeTags: tag }, q),
       asksAboutProfile && !actor.spontaneous ? this.aiModel.groupProfile(actor.bot, actor.chat, String(actor.subject?.id ?? actor.user)) : null,
     ]);
+    if (profile && /сколько|скольких|скольким/iu.test(question) && /ачив|достижени|осталось до/iu.test(question)) {
+      const member = actor.subject ?? actor.sender;
+      const name = member?.username ? '@' + member.username : member?.first_name || 'Участник';
+      const lines = [name, `Открыто ачивок: ${profile.opened} из ${profile.total}. Социальный рейтинг: ${profile.score}.`];
+      const words = (text: string) => (text.toLowerCase().match(/[\p{L}\d]+/gu) ?? [])
+        .map(word => word.replace(/(?:ами|ями|ой|ом|ов|ей|а|я|у|ю|ы|и|е)$/u, ''));
+      const queryWords = new Set(words(question));
+      const matches = profile.achievements.filter(a => {
+        const title = words(a.title);
+        return title.length > 0 && title.every(w => queryWords.has(w));
+      });
+      for (const a of matches) {
+        lines.push(`${a.title} — ${a.condition}: ${a.value}/${a.target}. ${a.unlocked ? 'Открыто.' : 'Осталось: ' + a.remaining + '.'}`);
+      }
+      if (!matches.length && /остал|до ачив|до достижени/iu.test(question)) lines.push('Укажи название ачивки как в профиле, чтобы посмотреть её условие и прогресс.');
+      return lines.join('\n');
+    }
     const asksAboutOwner = /владел|владель|хозяин|хозяев|создател|основател|\bowner\b/iu.test(q);
     const owner = String(actor.user) === config.groupOwnerId;
     const systemPrompt = [
