@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { collection } from '../achievements/achievement.service';
 import { socialScore } from '../social-rating/social-score';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -12,13 +13,18 @@ export class AiModel {
   constructor(private readonly prisma: PrismaService) {}
 
   async groupProfile(bot: string, chat: string, user: string) {
-    const [score, [counts]] = await Promise.all([
-      socialScore(this.prisma, bot, chat, user),
-      this.prisma.$queryRaw<
-        { opened: bigint; total: bigint }[]
-      >`SELECT COUNT(u.user_id) opened,COUNT(*) total FROM achievements a LEFT JOIN achievement_unlocks u ON u.achievement_id=a.id AND u.user_id=${user} WHERE a.bot_id=${bot} AND a.chat_id=${chat}`,
+    const [score, rows] = await Promise.all([
+      socialScore(this.prisma, bot, chat, user), collection(this.prisma, bot, chat, user, false),
     ]);
-    return { score, opened: Number(counts.opened), total: Number(counts.total) };
+    return { score, opened: rows.filter(r => r.unlocked).length, total: rows.length,
+      achievements: rows.map(r => ({ title: r.title, condition: r.condition, value: r.value,
+        target: r.threshold, remaining: r.unlocked ? 0 : Math.max(0, r.threshold - r.value), unlocked: !!r.unlocked })) };
+  }
+
+  async usernameCandidate(bot: string, username: string) {
+    const rows = await this.prisma.$queryRaw<{id: bigint}[]>`SELECT telegram_id AS id FROM bot_users
+      WHERE bot_id=${bot} AND username=${username} COLLATE NOCASE ORDER BY last_seen_at DESC LIMIT 1`;
+    return rows[0] ? Number(rows[0].id) : undefined;
   }
 
   async startGroupCall(

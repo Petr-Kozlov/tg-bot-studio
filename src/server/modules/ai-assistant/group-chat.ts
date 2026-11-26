@@ -5,6 +5,7 @@ import { GameMemory, gameEdit, specificGameEdit } from './game-memory';
 import { telegramParts } from './telegram-parts';
 import { asksForGame, generatedFile } from './generated-file';
 import { publishGame } from './ai-games.controller';
+import { profileQuestion, type ProfileIdentity } from './ai-assistant.service';
 import type { AiAssistantService, AiConfig, ChatMessage } from './ai-assistant.service';
 
 /** Keep only recent AI turns. Ordinary chat messages never enter the provider context. */
@@ -12,7 +13,7 @@ export function registerGroupChat(
   bot: Bot,
   chat: string | undefined,
   config: AiConfig,
-  ai: Pick<AiAssistantService, 'groupAnswer' | 'postComment' | 'isConfigured'>,
+  ai: Pick<AiAssistantService, 'groupAnswer' | 'postComment' | 'isConfigured'> & Partial<Pick<AiAssistantService, 'usernameCandidate'>>,
   botId: string,
 ) {
   if (!chat) return;
@@ -174,11 +175,36 @@ export function registerGroupChat(
           image = 'data:image/jpeg;base64,' + bytes.toString('base64');
         }
         const member = spontaneous ? null : await bot.api.getChatMember(ctx.chat.id, ctx.from.id).catch(() => null);
+        const identity = (u: ProfileIdentity): ProfileIdentity => ({ id: u.id, first_name: u.first_name, last_name: u.last_name, username: u.username });
+        let subject = ctx.from;
+        let birthdate: string | undefined;
+        let unresolved = false;
+        if (!spontaneous && profileQuestion.test(text) && !attachment && !image) {
+          const target = (msg.entities ?? msg.caption_entities ?? []).find(e =>
+            e.type === 'text_mention' || (e.type === 'mention' && e.offset !== mention?.offset));
+          const self = /(?:у меня|мне|мой|моя|моё|мои|когда я|меня зовут|меня по)/iu.test(text);
+          if (target?.type === 'text_mention') subject = target.user;
+          else if (target?.type === 'mention') {
+            const handle = body.slice(target.offset + 1, target.offset + target.length).toLowerCase();
+            const known = [ctx.from, source?.from].find(u => u?.username?.toLowerCase() === handle);
+            const candidate = known?.id ?? await ai.usernameCandidate?.(botId, handle);
+            const verified = candidate ? await bot.api.getChatMember(ctx.chat.id, candidate).catch(() => null) : null;
+            if (known) subject = known;
+            else if (verified && verified.status !== 'left' && verified.status !== 'kicked' && verified.user.username?.toLowerCase() === handle) subject = verified.user;
+            else unresolved = true;
+          } else if (!self && source?.from && source.from.id !== ctx.me.id && !source.sender_chat) subject = source.from;
+          else if (!self && /у\s+[\p{L}]+|его рейтинг|её рейтинг|автора|этого участника/iu.test(text)) unresolved = true;
+          if (!unresolved && self && subject.id === ctx.from.id && /рождени|рождень|родил|birthday/iu.test(text)) {
+            const full = await bot.api.getChat(subject.id).catch(() => null);
+            const date = full?.type === 'private' ? full.birthdate : undefined;
+            if (date) birthdate = [date.day, date.month, date.year].filter(Boolean).join('.');
+          }
+        }
         answer = (
           await ai.groupAnswer(config, turns, {
             bot: botId,
             chat,
-            user: ctx.from.id,
+            user: ctx.from.id, sender: identity(ctx.from), subject: identity(subject), birthdate, unresolved,
             message: msg.message_id,
             memberStatus: member?.status,
             memberTag: msg.sender_tag || (member && 'custom_title' in member ? member.custom_title : undefined),
@@ -226,7 +252,7 @@ export function registerGroupChat(
           responseIds.push(response.message_id);
         }
       }
-      const depth = Math.max(1, Math.min(4, config.historyLimit || 2));
+      const depth = Math.max(1, Math.min(8, config.historyLimit || 2));
       const chain: ChatMessage[] = [
         ...turns,
         { role: 'assistant', content: file ? 'Выдан файл ' + file.name : answer.slice(0, 1600) },

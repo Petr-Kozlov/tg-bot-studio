@@ -44,3 +44,18 @@ test('a complete requested HTML game gets a play button even with a FILE header'
   expect(generatedFile(answer)?.game).toBe(false);
   expect(() => generatedFile(answer.replace('</html>', ''), true)).toThrow();
 });
+test('uses the selected member, local progress and name even for a fresh-sounding question', async () => {
+  const service = new AiAssistantService({listDocs: async () => [], groupProfile: async (_b: string, _c: string, id: string) => {
+    expect(id).toBe('18');
+    return {score: 12, opened: 1, total: 2, achievements: [{ title: 'Пилот', remaining: 3 }]};
+  }} as never, {} as never, {} as never);
+  Object.assign(service, { accountedReply: async (_cfg: unknown, turns: {content: string}[]) => turns.at(-1)?.content });
+  const actor = { bot:'b', chat:'c', user:17, message:7, sender:{id:17,first_name:'Лена'}, subject:{id:18,first_name:'Олег',username:'pilot'} };
+  const history = [{role:'user' as const,content:'Какой сейчас прогресс по ачивке у @pilot?'}];
+  const reply = await service.groupAnswer({ freshFacts:true } as AiConfig, history, actor);
+  expect(JSON.parse(reply).telegram.subject.username).toBe('pilot');
+  expect(JSON.parse(reply).telegram.achievements[0].remaining).toBe(3);
+  expect(await service.groupAnswer({} as AiConfig, history, {...actor,unresolved:true})).toContain('Не удалось определить');
+  expect(generatedFile('GAME: game.html\n<html></html>')?.game).toBe(true);
+  expect(() => generatedFile('GAME: game.html\n<html>')).toThrow();
+});

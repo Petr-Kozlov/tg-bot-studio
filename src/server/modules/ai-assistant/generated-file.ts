@@ -26,9 +26,10 @@ export function generatedFile(answer: string, requestedGame = false) {
   if (!header) return null;
   const name = header[2].trim();
   const end = /\r?\nEND_FILE\s*$/.exec(answer);
-  if (!end || !/^[\p{L}\p{N}_-][\p{L}\p{N} ._-]{0,75}\.[a-z\d]{1,10}$/iu.test(name))
+  const closedHtml = /\.html?$/i.test(name) && /<\/html>\s*$/i.test(answer);
+  if ((!end && !closedHtml) || !/^[\p{L}\p{N}_-][\p{L}\p{N} ._-]{0,75}\.[a-z\d]{1,10}$/iu.test(name))
     throw Error('Incomplete file');
-  const content = answer.slice(header[0].length, end.index);
+  const content = answer.slice(header[0].length, end?.index);
   const game = header[1] === 'GAME' || (requestedGame && /\.html?$/i.test(name));
   if (!content.trim() || (game && (!/\.html?$/i.test(name) || !/<\/html>\s*$/i.test(content))))
     throw Error('Incomplete file');
